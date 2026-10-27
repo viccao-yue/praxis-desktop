@@ -22,6 +22,53 @@ export function normalizeAsarEntry(entry: string): string {
   return entry.replaceAll('\\', '/').replace(/^\//u, '')
 }
 
+/** Cross-arch macOS smoke (x64 Node on arm64 CI) needs Rosetta and longer timeouts. */
+export function packagedNodeInvocation(
+  node: string,
+  args: readonly string[],
+  options: {
+    readonly expectedArch: string
+    readonly hostArch?: string
+    readonly platform?: NodeJS.Platform
+    readonly timeout: number
+    readonly archHelperExists?: boolean
+  },
+): { command: string; argv: string[]; timeout: number } {
+  const hostArch = options.hostArch ?? process.arch
+  const platform = options.platform ?? process.platform
+  const crossArch = platform === 'darwin' && options.expectedArch !== hostArch
+  // Rosetta first-launch of an x64 Node can exceed native timeouts on arm64 runners.
+  const timeout = crossArch ? Math.max(options.timeout * 3, 180_000) : options.timeout
+  const useArch = crossArch
+    && options.expectedArch === 'x64'
+    && hostArch === 'arm64'
+    && (options.archHelperExists ?? existsSync('/usr/bin/arch'))
+  return useArch
+    ? { command: '/usr/bin/arch', argv: ['-x86_64', node, ...args], timeout }
+    : { command: node, argv: [...args], timeout }
+}
+
+/** Run the packaged Node with cross-arch macOS handling. */
+export function runPackagedNode(
+  node: string,
+  args: readonly string[],
+  options: {
+    readonly expectedArch: string
+    readonly hostArch?: string
+    readonly platform?: NodeJS.Platform
+    readonly timeout: number
+    readonly encoding?: BufferEncoding
+    readonly maxBuffer?: number
+  },
+): ReturnType<typeof spawnSync> {
+  const invocation = packagedNodeInvocation(node, args, options)
+  return spawnSync(invocation.command, invocation.argv, {
+    encoding: options.encoding ?? 'utf8',
+    timeout: invocation.timeout,
+    ...(options.maxBuffer === undefined ? {} : { maxBuffer: options.maxBuffer }),
+  })
+}
+
 /** Read final copied package entries, including public SDK declarations. A
  * valid source archive cannot prove that extraResources retained its exports. */
 export function verifyPackagedOwnedExports(profile: string, names: readonly string[] = RELEASE_PACKAGES): void {
@@ -149,30 +196,31 @@ export async function afterPack(context: PackContext): Promise<void> {
     const signed = spawnSync('/usr/bin/codesign', ['--force', '--sign', '-', '--options', 'runtime', '--entitlements', entitlements, node], { encoding: 'utf8', timeout: 30_000 })
     if (signed.error || signed.status !== 0) throw new Error('Packaged Node runtime signing failed: ' + String(signed.error ?? signed.stderr))
   }
-  const native = spawnSync(node, ['--input-type=module', '-e',
-    "import { createRequire } from 'node:module'; const root = createRequire(process.argv[1]); createRequire(root.resolve('@deepseek-ai/cordis-plugin-loader'))('node-addon-require-builtin'); console.log('native runtime load passed')", join(profile, 'package.json')],
-    { encoding: 'utf8', timeout: 30_000 })
+  const runNode = (args: readonly string[], timeout: number, maxBuffer?: number) => runPackagedNode(node, args, {
+    expectedArch,
+    timeout,
+    ...(maxBuffer === undefined ? {} : { maxBuffer }),
+  })
+  const native = runNode(['--input-type=module', '-e',
+    "import { createRequire } from 'node:module'; const root = createRequire(process.argv[1]); createRequire(root.resolve('@deepseek-ai/cordis-plugin-loader'))('node-addon-require-builtin'); console.log('native runtime load passed')", join(profile, 'package.json')], 30_000)
   if (native.error || native.status !== 0) throw new Error('Packaged Node cannot load the official native plugin dependency: ' + String(native.error ?? native.stderr))
-  process.stdout.write(native.stdout)
+  process.stdout.write(String(native.stdout ?? ''))
   const pnpm = join(runtime, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.cjs')
   if (primary.pnpm !== OFFICIAL_PNPM_VERSION || !existsSync(pnpm)) throw new Error('Packaged official pnpm CLI is missing or has another version')
-  const packageManager = spawnSync(node, [pnpm, '--version'], { encoding: 'utf8', timeout: 30_000 })
-  if (packageManager.error || packageManager.status !== 0 || packageManager.stdout.trim() !== primary.pnpm) {
+  const packageManager = runNode([pnpm, '--version'], 30_000)
+  if (packageManager.error || packageManager.status !== 0 || String(packageManager.stdout ?? '').trim() !== primary.pnpm) {
     throw new Error('Packaged official pnpm JavaScript CLI cannot run with its bundled Node')
   }
   const inventoryCheck = fileURLToPath(new URL('./verify-product-plugin-inventory.mjs', import.meta.url))
-  const inventory = spawnSync(node, [inventoryCheck, runtime], {
-    encoding: 'utf8',
-    timeout: 120_000,
-  })
+  const inventory = runNode([inventoryCheck, runtime], 120_000)
   if (inventory.error || inventory.status !== 0) {
     throw new Error(`Packaged kaiwu plugin inventory check failed: ${String(inventory.error ?? inventory.stderr)}`)
   }
-  process.stdout.write(inventory.stdout)
+  process.stdout.write(String(inventory.stdout ?? ''))
   const hostCheck = fileURLToPath(new URL('./verify-installation-anchor.mjs', import.meta.url))
-  const host = spawnSync(node, [hostCheck, runtime], { encoding: 'utf8', timeout: 150_000, maxBuffer: 1024 * 1024 })
-  if (host.error || host.status !== 0) throw new Error('Packaged full Host startup check failed: ' + String(host.error ?? host.stderr + host.stdout))
-  process.stdout.write(host.stdout)
+  const host = runNode([hostCheck, runtime], 150_000, 1024 * 1024)
+  if (host.error || host.status !== 0) throw new Error('Packaged full Host startup check failed: ' + String(host.error ?? String(host.stderr ?? '') + String(host.stdout ?? '')))
+  process.stdout.write(String(host.stdout ?? ''))
   console.log(`Verified thin Electron carrier and ${names.length} root / ${instances} total Harness ${DSH_VERSION} package instances`)
 }
 

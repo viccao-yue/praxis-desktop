@@ -3,7 +3,7 @@ import { cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeF
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { normalizeAsarEntry, verifyPackagedOwnedExports } from '../scripts/verify-workdsh-carrier.ts'
+import { normalizeAsarEntry, packagedNodeInvocation, verifyPackagedOwnedExports } from '../scripts/verify-workdsh-carrier.ts'
 
 // Use electron-builder's real matcher without importing its unrelated target
 // declaration graph (the published SnapOptions declaration has a missing file).
@@ -19,6 +19,32 @@ describe('ASAR inventory paths', () => {
     expect(normalizeAsarEntry('/lib/workdsh-main.js')).toBe('lib/workdsh-main.js')
     expect(normalizeAsarEntry('\\node_modules\\@deepseek-ai\\dsh\\package.json'))
       .toBe('node_modules/@deepseek-ai/dsh/package.json')
+  })
+})
+
+describe('packaged Node cross-arch invocation', () => {
+  it('wraps x64 Node with arch -x86_64 and extends timeouts on arm64 macOS hosts', () => {
+    const node = '/tmp/packaged-node'
+    const same = packagedNodeInvocation(node, ['--version'], {
+      expectedArch: 'arm64',
+      hostArch: 'arm64',
+      platform: 'darwin',
+      timeout: 30_000,
+    })
+    expect(same).toEqual({ command: node, argv: ['--version'], timeout: 30_000 })
+
+    const cross = packagedNodeInvocation(node, ['--version'], {
+      expectedArch: 'x64',
+      hostArch: 'arm64',
+      platform: 'darwin',
+      timeout: 30_000,
+      archHelperExists: true,
+    })
+    expect(cross).toEqual({
+      command: '/usr/bin/arch',
+      argv: ['-x86_64', node, '--version'],
+      timeout: 180_000,
+    })
   })
 })
 
