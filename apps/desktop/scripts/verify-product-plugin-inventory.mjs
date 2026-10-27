@@ -14,10 +14,14 @@ const expected = PRODUCT_PACKAGES
 const anchor = join(source, 'profile-installation.json')
 if (!existsSync(anchor)) throw new Error(`Missing bundled DSH installation: ${anchor}`)
 const installation = JSON.parse(readFileSync(anchor, 'utf8'))
-// 企业连接 may sit in optionalDependencies for default install UX, but personal
-// composition must not enable enterprise identity/collaboration bundles.
+// Profile optionals are projected into installation peers. 企业连接 may appear
+// there as shippable media; identity/collaboration must stay out entirely, and
+// no enterprise package may be a required dependency of the base installer.
 for (const name of ENTERPRISE_PACKAGES) {
-  if (installation.dependencies?.[name] || installation.peerDependencies?.[name]) {
+  if (installation.dependencies?.[name]) {
+    throw new Error('Base installer must not activate enterprise plugins as required deps: ' + name)
+  }
+  if (name !== 'workdsh-enterprise-connection' && installation.peerDependencies?.[name]) {
     throw new Error('Base installer must not activate enterprise plugins as required deps: ' + name)
   }
 }
