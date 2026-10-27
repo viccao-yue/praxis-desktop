@@ -66,7 +66,7 @@
   },
   "build": {
     "appId": "io.kaiwu.desktop",
-    "productName": "kaiwu",
+    "productName": "开物Praxis",
     "executableName": "kaiwu",
     "asar": {
       "smartUnpack": true

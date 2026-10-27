@@ -26,7 +26,7 @@ const SNAPSHOT = join(WORKSPACE_ROOT, '.artifacts', 'desktop-pack-test', 'upstre
 const DESKTOP_APP = join(SNAPSHOT, 'apps', 'desktop');
 const PATCH_STORE = join(SCRIPT_DIR, 'patches', 'upstream');
 const TARGET_NAME = 'mac-arm64';
-const APP_BUNDLE = join(DESKTOP_APP, '.desktop-build', 'targets', TARGET_NAME, 'artifacts', TARGET_NAME, 'kaiwu.app');
+const APP_BUNDLE = join(DESKTOP_APP, '.desktop-build', 'targets', TARGET_NAME, 'artifacts', TARGET_NAME, '开物Praxis.app');
 const ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
 const REQUIRED_NODE = [22, 19];
 
@@ -212,9 +212,9 @@ if (flag('--check-only')) {
 }
 
 const pnpm = resolvePnpmEntry();
-if (spawnSync('pgrep', ['-f', 'kaiwu.app/Contents/MacOS/kaiwu']).status === 0) {
+if (spawnSync('pgrep', ['-f', '开物Praxis.app/Contents/MacOS/kaiwu']).status === 0) {
   console.log('[pack-desktop] 停止运行中的 kaiwu 实例（避免覆盖运行中的应用）');
-  spawnSync('pkill', ['-f', 'kaiwu.app/Contents/MacOS/kaiwu']);
+  spawnSync('pkill', ['-f', '开物Praxis.app/Contents/MacOS/kaiwu']);
 }
 if (!flag('--skip-build')) {
   console.log('[pack-desktop] 1/2 build:desktop（tsc + tsdown）');

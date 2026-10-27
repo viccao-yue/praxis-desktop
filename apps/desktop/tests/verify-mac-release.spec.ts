@@ -12,6 +12,7 @@ function options(overrides: Partial<MacReleaseVerificationOptions> = {}) {
     distDir: '/release/dist',
     targetArch: 'arm64',
     productName: 'kaiwu',
+    executableName: 'kaiwu',
     listDmgs: () => ['/release/dist/kaiwu-2.0.0-arm64.dmg'],
     makeMountPoint: () => '/private/tmp/dsh-desktop-dmg-test',
     run: (command, args) => { calls.push({ command, args: [...args] }) },

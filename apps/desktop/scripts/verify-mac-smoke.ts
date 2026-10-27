@@ -1,7 +1,7 @@
 /** Verify the unsigned application structure sealed inside one macOS smoke DMG. */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, rmdirSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,8 +13,10 @@ export interface MacSmokeVerificationOptions {
   readonly distDir: string
   /** Architecture expected in this DMG. */
   readonly targetArch: 'x64' | 'arm64'
-  /** Installed application name inside the mounted image. */
+  /** Application bundle name inside the mounted image (without `.app`). */
   readonly productName: string
+  /** Main executable basename under `Contents/MacOS` (may differ from productName). */
+  readonly executableName: string
   /** Return regular DMG files in the distribution directory. */
   readonly listDmgs: (distDir: string) => readonly string[]
   /** Create a private empty mount point. */
@@ -50,12 +52,17 @@ function run(command: string, args: readonly string[]): void {
 
 function defaultOptions(): MacSmokeVerificationOptions {
   const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+  const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')) as {
+    build?: { productName?: string; executableName?: string }
+  }
+  const productName = manifest.build?.productName ?? '开物Praxis'
   return {
     distDir: process.argv[2] === undefined
       ? join(packageRoot, 'dist', 'mac-smoke')
       : resolve(process.argv[2]),
     targetArch: process.argv[3] === 'x64' ? 'x64' : 'arm64',
-    productName: 'kaiwu',
+    productName,
+    executableName: manifest.build?.executableName ?? productName,
     listDmgs,
     makeMountPoint: () => mkdtempSync(join(tmpdir(), 'dsh-desktop-dmg-smoke-')),
     run,
@@ -108,7 +115,7 @@ export function verifyMacSmoke(
     if (!options.exists(macosDirectory)) {
       throw new Error(`packaged application is missing ${macosDirectory}`)
     }
-    const executablePath = join(macosDirectory, options.productName)
+    const executablePath = join(macosDirectory, options.executableName)
     if (!options.exists(executablePath)) {
       throw new Error(`packaged application is missing its main executable: ${executablePath}`)
     }

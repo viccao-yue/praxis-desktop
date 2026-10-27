@@ -44,7 +44,7 @@ test('packaged verification reads copied Resources bytes and refuses missing, ch
  const directory=await mkdtemp(join(tmpdir(),'workdsh-packaged-frame-'));
  const sourceProfile=join(directory,'build/profile');
  const pkg=join(sourceProfile,'node_modules/@deepseek-ai/dsh-client-ui-conversation');
- const packaged=join(directory,'kaiwu.app/Contents/Resources/workdsh-runtime/profiles/kaiwu');
+ const packaged=join(directory,'开物Praxis.app/Contents/Resources/workdsh-runtime/profiles/kaiwu');
  try{
   await mkdir(join(pkg,'lib'),{recursive:true});await writeFile(join(sourceProfile,'package.json'),'{}');
   const manifest=JSON.parse(await readFile(manifestPath,'utf8'));

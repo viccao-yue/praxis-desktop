@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, createWriteStream } from 'node:fs'
 import { join } from 'node:path'
 const require=createRequire(new URL('../../web/package.json',import.meta.url))
 const {chromium}=require('@playwright/test')
-const app=process.env.WORKDSH_TEST_APP ?? new URL('../dist/mac-smoke/arm64/mac-arm64/kaiwu.app',import.meta.url).pathname
+const app=process.env.WORKDSH_TEST_APP ?? new URL('../dist/mac-smoke/arm64/mac-arm64/开物Praxis.app',import.meta.url).pathname
 const directory=mkdtempSync('/private/tmp/workdsh-package-gui-')
 const report={app,directory,checks:{}}
 const env={...process.env,WORKDSH_DESKTOP_USER_DATA:join(directory,'user-data'),npm_config_registry:'https://registry.npmmirror.com'}

@@ -379,8 +379,12 @@ jobs:
           if [[ "$VERSION" == *-* ]]; then
             release_flags=(--prerelease --latest=false)
           fi
+          # Retagged alpha builds reuse the same desktop-v* name; replace the prior prerelease assets.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag=false
+          fi
           gh release create "$TAG" release-assets/* \
             --repo "$GITHUB_REPOSITORY" \
-            --title "kaiwu Desktop ${VERSION}" \
+            --title "开物Praxis Desktop ${VERSION}" \
             --notes-file "$NOTES_FILE" \
             "${release_flags[@]}"

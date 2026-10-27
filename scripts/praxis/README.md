@@ -24,17 +24,17 @@
 | 字段 | 应保持为 |
 | --- | --- |
 | `appId` | `io.kaiwu.desktop` |
-| `productName` / `executableName` | `kaiwu`（二进制与 `.app` 路径名） |
+| `productName` | `开物Praxis`（DMG / 应用程序包显示名 → `开物Praxis.app`） |
+| `executableName` | `kaiwu`（二进制仍为 `Contents/MacOS/kaiwu`、`kaiwu.exe`） |
 | `mac.extendInfo.CFBundleDisplayName` / `CFBundleName` | `开物Praxis`（Dock / 访达显示名） |
 | `nsis.shortcutName` | `开物Praxis` |
 | `mac.artifactName` | `kaiwu-${version}-${arch}.${ext}` |
 | `win.artifactName` / `nsis.artifactName` | `kaiwu-...` |
-| `nsis.shortcutName` | `kaiwu` |
 | `repository.url` | `https://github.com/viccao-yue/praxis-desktop.git`（本 fork，勿指回 techflag/workdsh） |
 
-产物应为：`kaiwu.app` / `kaiwu.exe` / `kaiwu-*-Setup.exe` / `kaiwu-*.dmg` 等，**不要**再出现 `WorkDSH.app` / `WorkDSH.exe`。
+产物应为：`开物Praxis.app` / `kaiwu.exe` / `kaiwu-*-Setup.exe` / `kaiwu-*.dmg` 等，**不要**再出现 `WorkDSH.app` / `WorkDSH.exe`。
 
-相关脚本与测试若硬编码了旧产品名，一并改回 `kaiwu`（`verify-mac-*.ts`、`verify-win-*.ts`、`accept-*.mjs`、`probe-windows-packaged-runtime.ts`、`windows-nsis-ab` 等）。
+相关脚本与测试若硬编码了旧 `.app` 名，改到 `开物Praxis.app`（`verify-mac-*.ts`、`accept-*.mjs` 等）；可执行文件名仍为 `kaiwu`。
 
 ### B. 运行时显示与用户目录
 
