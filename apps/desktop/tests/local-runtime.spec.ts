@@ -27,6 +27,7 @@ it('uses official installation anchoring without a shared writable module symlin
   const { source, home, base } = fixture()
   const first = materializeRuntimeProfile(source, home)
   expect(existsSync(join(first.profile, 'node_modules'))).toBe(false)
+  expect(JSON.parse(readFileSync(join(home, 'integrations/dsh-im/sidebar-settings.json'), 'utf8'))).toEqual({ version: 1, mode: 'hide' })
   const manifest = join(first.profile, 'package.json')
   expect(JSON.parse(readFileSync(manifest, 'utf8')).dependencies).toEqual({})
   const user = { ...JSON.parse(readFileSync(manifest, 'utf8')), dependencies: { 'user-plugin': 'file:custom.tgz' } }

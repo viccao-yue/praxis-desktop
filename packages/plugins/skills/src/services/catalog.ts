@@ -124,6 +124,8 @@ export class SkillCatalogStore {
       'workdsh-excel-design': 'Excel 表格设计',
       'workdsh-web-design': '网页设计与制作',
       'workdsh-pdf-design': 'PDF 文档设计',
+      'kubercon-deploy': '常青云容器云装机',
+      'kubercon-kubectl': '常青云容器云运维',
     };
     for (const [name, title] of Object.entries(builtinTitles)) {
       if (installed.has(name) && (!rows.get(name)?.title || rows.get(name)?.title === name)) rows.set(name, { ...rows.get(name), title });

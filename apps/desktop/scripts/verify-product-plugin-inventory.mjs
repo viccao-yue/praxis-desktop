@@ -14,8 +14,12 @@ const expected = PRODUCT_PACKAGES
 const anchor = join(source, 'profile-installation.json')
 if (!existsSync(anchor)) throw new Error(`Missing bundled DSH installation: ${anchor}`)
 const installation = JSON.parse(readFileSync(anchor, 'utf8'))
+// 企业连接 may sit in optionalDependencies for default install UX, but personal
+// composition must not enable enterprise identity/collaboration bundles.
 for (const name of ENTERPRISE_PACKAGES) {
- if(existsSync(join(source,'node_modules',name,'package.json'))||installation.dependencies?.[name]||installation.peerDependencies?.[name])throw new Error('Base installer must not preinstall enterprise plugins: '+name)
+  if (installation.dependencies?.[name] || installation.peerDependencies?.[name]) {
+    throw new Error('Base installer must not activate enterprise plugins as required deps: ' + name)
+  }
 }
 
 process.env.DSH_HOME = runtime
@@ -35,7 +39,7 @@ try {
     root.loader.builtins.manager = PluginManager
   })
   const allBundles = await ctx.pluginManager.listBundles()
-  const bundles = allBundles.filter(row => row.name.startsWith('workdsh-'))
+  const bundles = allBundles.filter(row => row.name.startsWith('workdsh-') && !ENTERPRISE_PACKAGES.includes(row.name))
   const names = bundles.map(row => row.name).sort()
   if (JSON.stringify(names) !== JSON.stringify(expected)) {
     throw new Error(`Plugin manager exposes ${names.join(', ') || '(none)'}; expected ${expected.join(', ')}`)
@@ -44,6 +48,10 @@ try {
     if (!bundle.enabled || bundle.installed !== installedInProfile || bundle.removable || bundle.error) {
       throw new Error(`kaiwu product bundle is inactive or invalid: ${bundle.name}: ${JSON.stringify(bundle)}`)
     }
+  }
+  for (const name of ENTERPRISE_PACKAGES) {
+    const bundle = allBundles.find(row => row.name === name)
+    if (bundle?.enabled) throw new Error('Enterprise bundle must stay disabled in the personal base Profile: ' + name)
   }
   for (const name of Object.keys(CATALOG_PACKAGES)) {
     const bundle = allBundles.find(row => row.name === name)

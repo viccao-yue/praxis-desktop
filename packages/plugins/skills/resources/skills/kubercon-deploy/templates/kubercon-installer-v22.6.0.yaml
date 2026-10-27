@@ -1,0 +1,140 @@
+# 模式 C 使用：KuberCon installer CRD、命名空间、RBAC 与 Deployment。
+# 来源快照：kubercon-installer/deploy/kubercon-installer.yaml（v22.6.0）。
+# apply 前必须核对镜像 tag、registry 与现场制品一致，并取得「确认 D8I」。
+# ClusterRole 权限很高；禁止用于非目标集群，禁止跳过 existing-k8s-preflight.sh。
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusterconfigurations.installer.kubercloud.com
+spec:
+  group: installer.kubercloud.com
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+  scope: Namespaced
+  names:
+    plural: clusterconfigurations
+    singular: clusterconfiguration
+    kind: ClusterConfiguration
+    shortNames: [cc]
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubercon-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubercon-installer
+  namespace: kubercon-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubercon-installer
+rules:
+- apiGroups:
+  - ""
+  - apps
+  - extensions
+  - batch
+  - rbac.authorization.k8s.io
+  - apiregistration.k8s.io
+  - apiextensions.k8s.io
+  - tenant.kubercloud.com
+  - certificates.k8s.io
+  - devops.kubercloud.com
+  - monitoring.coreos.com
+  - logging.kubercloud.com
+  - jaegertracing.io
+  - storage.k8s.io
+  - admissionregistration.k8s.io
+  - policy
+  - autoscaling
+  - networking.istio.io
+  - config.istio.io
+  - iam.kubercloud.com
+  - notification.kubercloud.com
+  - auditing.kubercloud.com
+  - events.kubercloud.com
+  - core.kubefed.io
+  - installer.kubercloud.com
+  - storage.kubercloud.com
+  - security.istio.io
+  - monitoring.kiali.io
+  - kiali.io
+  - networking.k8s.io
+  - edgeruntime.kubercloud.com
+  - types.kubefed.io
+  - monitoring.kubercloud.com
+  - application.kubercloud.com
+  - alerting.kubercloud.com
+  - fluentbit.fluent.io
+  - cert-manager.io
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubercon-installer
+subjects:
+- kind: ServiceAccount
+  name: kubercon-installer
+  namespace: kubercon-system
+roleRef:
+  kind: ClusterRole
+  name: kubercon-installer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubercon-installer
+  namespace: kubercon-system
+  labels:
+    app: kubercon-installer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubercon-installer
+  template:
+    metadata:
+      labels:
+        app: kubercon-installer
+    spec:
+      serviceAccountName: kubercon-installer
+      containers:
+      - name: installer
+        image: docker.changqingyun.cn/kubercon/kubercon-installer:v22.6.0
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 20m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: host-time
+          readOnly: true
+      volumes:
+      - hostPath:
+          path: /etc/localtime
+          type: ""
+        name: host-time

@@ -24,8 +24,9 @@
 | 字段 | 应保持为 |
 | --- | --- |
 | `appId` | `io.kaiwu.desktop` |
-| `productName` | `kaiwu` |
-| `executableName` | `kaiwu` |
+| `productName` / `executableName` | `kaiwu`（二进制与 `.app` 路径名） |
+| `mac.extendInfo.CFBundleDisplayName` / `CFBundleName` | `开物Praxis`（Dock / 访达显示名） |
+| `nsis.shortcutName` | `开物Praxis` |
 | `mac.artifactName` | `kaiwu-${version}-${arch}.${ext}` |
 | `win.artifactName` / `nsis.artifactName` | `kaiwu-...` |
 | `nsis.shortcutName` | `kaiwu` |
@@ -69,6 +70,7 @@
 | --- | --- |
 | `patch-account-menu.mjs` | 设置菜单：去掉联系我们/登录；未登录显示「设置」并打开设置 |
 | `patch-signin-waiting.mjs` | 去掉「开始使用 / 等待登录」弹窗；跳过强制登录引导 |
+| `patch-welcome-notice.mjs` | 去掉官方「预览版说明」首屏弹窗 |
 | `patch-sidebar-icons.mjs` | 左侧栏插件、自动化任务图标 |
 | `patch-skillhub-plaza.mjs` | 插件广场改为侧栏页，去掉重复技能页 |
 | `patch-plugin-display-names.mjs` | 插件管理 UI 去掉技术前缀 `workdsh-` |
@@ -78,9 +80,11 @@
 
 ### E. 产品边界（勿在升级时带回）
 
-- 基础安装包 **不要** 预装或默认激活 `workdsh-enterprise-connection` / 企业身份与协作插件。
-- 企业能力仍须成员在个人空间显式安装后再企业登录。
+- 企业连接 `workdsh-enterprise-connection` 可作为 optionalDependency 打进安装包，便于「插件」里默认可见；**不要**把它写进个人 `dsh.profile.bundles`，也不要默认启用身份/协作。
+- 企业登录仍须成员认证；个人模式不得自动激活协作。
 - 个人默认可保留非企业的官方 bundle（例如 `@deepseek-ai/dsh-experimental-auto-review`），见 `apps/desktop/scripts/workdsh-package-boundary.mjs` 的 `PERSONAL_DEFAULT_EXTRA_BUNDLES`。
+- 默认本机端口为 `15200`（`apps/desktop/src/runtime-port.ts`）；已有工作区保留原端口记录。
+- IM 机器人默认隐藏侧栏入口（`integrations/dsh-im/sidebar-settings.json` → `hide`），入口仍在设置中。
 
 ### F. 刻意未改（升级时一般不用动）
 

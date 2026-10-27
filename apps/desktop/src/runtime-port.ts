@@ -64,7 +64,7 @@ async function availablePort(port: number): Promise<number | undefined> {
 
 /** Existing Homes keep their origin; a conflicting owner is never stopped. */
 export async function prepareRuntimePort(home: string, userPatchFiles: string[], options: { preferredPort?: number, existingHome?: boolean } = {}): Promise<RuntimePort> {
-  const preferredPort = options.preferredPort ?? 3080
+  const preferredPort = options.preferredPort ?? 15200
   for (const file of userPatchFiles) {
     const text = await readOptional(file)
     if (text !== undefined && hasServerOverride(codec.load(text, { schema }))) return { managed: false }
@@ -76,7 +76,7 @@ export async function prepareRuntimePort(home: string, userPatchFiles: string[],
     if (await availablePort(port) === undefined) throw new Error(`此工作区原有地址 ${HOST}:${port} 正被占用。请先关闭占用该地址的应用后重试；为保留页面数据，本次未切换地址，也未停止其他进程。`)
   } else {
     port = await availablePort(preferredPort)
-    // Before Home-owned records existed, this Desktop used 3080. Preserve
+    // Before Home-owned records existed, this Desktop used 3080 then 15200. Preserve
     // that origin for an existing Profile instead of hiding its localStorage.
     if (port === undefined && options.existingHome) throw new Error(`已有工作区原地址 ${HOST}:${preferredPort} 正被占用。为保留页面数据，本次未切换地址，也未停止其他进程；请关闭占用该地址的应用后重试。`)
     port ??= await availablePort(0)

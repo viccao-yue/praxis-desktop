@@ -1,0 +1,48 @@
+{
+  "apiVersion": "kubercon.io/v1alpha1",
+  "profile": "local-haproxy",
+  "cluster": {
+    "kubernetesVersion": "v1.28.15",
+    "podCIDR": "10.233.64.0/18",
+    "serviceCIDR": "10.233.0.0/18",
+    "apiDomain": "lb.kubercon.local",
+    "apiAddress": "",
+    "privateRegistry": "docker.kubercon.local",
+    "registryCAPath": "/etc/ssl/registry/ssl/ca.pem"
+  },
+  "ssh": {
+    "user": "root",
+    "port": 22,
+    "privateKeyPath": "/root/.ssh/id_rsa"
+  },
+  "nodes": [
+    {
+      "name": "node1",
+      "arch": "amd64",
+      "address": "192.0.2.11",
+      "internalAddress": "10.10.10.11",
+      "roles": ["etcd", "control-plane", "worker", "registry"]
+    },
+    {
+      "name": "node2",
+      "arch": "amd64",
+      "address": "192.0.2.12",
+      "internalAddress": "10.10.10.12",
+      "roles": ["etcd", "control-plane", "worker"]
+    },
+    {
+      "name": "node3",
+      "arch": "amd64",
+      "address": "192.0.2.13",
+      "internalAddress": "10.10.10.13",
+      "roles": ["etcd", "control-plane", "worker"]
+    },
+    {
+      "name": "worker1",
+      "arch": "amd64",
+      "address": "192.0.2.21",
+      "internalAddress": "10.10.10.21",
+      "roles": ["worker"]
+    }
+  ]
+}

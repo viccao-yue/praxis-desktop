@@ -11,6 +11,7 @@ import { composeProfilePatches, verifyDefaultComposition, verifyDefaultProfile, 
 import { runtimeArchitecture, runtimeArchitectureYaml } from './runtime-architecture.mjs'
 import { patchAccountMenuAt } from '../../../scripts/praxis/patch-account-menu.mjs'
 import { patchSignInWaitingAt } from '../../../scripts/praxis/patch-signin-waiting.mjs'
+import { patchWelcomeNoticeAt } from '../../../scripts/praxis/patch-welcome-notice.mjs'
 import { patchSkillhubPlazaAt } from '../../../scripts/praxis/patch-skillhub-plaza.mjs'
 import { patchSidebarIconsAt } from '../../../scripts/praxis/patch-sidebar-icons.mjs'
 import { patchPluginDisplayNamesAt } from '../../../scripts/praxis/patch-plugin-display-names.mjs'
@@ -83,6 +84,8 @@ function verifyInstalled() {
   patchAccountMenuAt(profile)
   // Praxis: hide the waiting-for-browser login modal; browser flow continues.
   patchSignInWaitingAt(profile)
+  // Praxis: hide DeepSeek 「预览版说明」 first-run modal.
+  patchWelcomeNoticeAt(profile)
   // Praxis: 插件广场 only lists plugins; skills stay on 技能 · 连接器.
   patchSkillhubPlazaAt(profile)
   // Praxis: official 插件 / 自动化任务 glyphs match the owned sidebar set.
@@ -142,6 +145,26 @@ if (!prepared) {
       if (pass === 8) throw new Error('Official runtime peer closure did not converge')
       run(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['--yes', `pnpm@${OFFICIAL_PNPM_VERSION}`, '--dir', profile, 'add', '--save-exact', '--ignore-scripts', ...missing.values()], { shell: process.platform === 'win32' })
     }
+    // Praxis: ship 企业连接 in the default Profile install graph (not in personal bundles).
+    const enterprisePlugins = join(release, 'enterprise-plugins')
+    const enterpriseManifest = join(enterprisePlugins, 'enterprise-plugin-manifest.json')
+    if (existsSync(enterpriseManifest)) {
+      const meta = readJson(enterpriseManifest)
+      if (meta.name !== 'workdsh-enterprise-connection' || typeof meta.filename !== 'string') {
+        throw new Error('Invalid enterprise connection delivery manifest')
+      }
+      const archive = join(enterprisePlugins, meta.filename)
+      if (!existsSync(archive)) throw new Error('Enterprise connection archive missing: ' + archive)
+      mkdirSync(join(output, 'enterprise-plugins'), { recursive: true })
+      cpSync(archive, join(output, 'enterprise-plugins', meta.filename))
+      cpSync(enterpriseManifest, join(output, 'enterprise-plugins', 'enterprise-plugin-manifest.json'))
+      cpSync(archive, join(cache, meta.filename))
+      run(process.platform === 'win32' ? 'npx.cmd' : 'npx', [
+        '--yes', `pnpm@${OFFICIAL_PNPM_VERSION}`, '--dir', profile,
+        'add', '--save-exact', '--save-optional', '--ignore-scripts',
+        'workdsh-enterprise-connection@file:../../package-cache/' + meta.filename,
+      ], { shell: process.platform === 'win32' })
+    }
     const patches = RELEASE_PACKAGES.filter(name => !PRODUCT_PACKAGES.includes(name) && !ENTERPRISE_PACKAGES.includes(name))
       .map(name => join(profile, 'node_modules', name, 'cordis.patch.yml')).filter(existsSync)
       .map(path => readFileSync(path, 'utf8').trim())
@@ -157,4 +180,4 @@ if (!prepared) {
   }
 }
 cpSync(join(profile, 'package.json'), join(output, 'profile-package.json'))
-console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) and no preinstalled enterprise plugins at ${output}`)
+console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) and optional enterprise connection at ${output}`)

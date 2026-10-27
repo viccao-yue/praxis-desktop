@@ -115,6 +115,8 @@
       "category": "public.app-category.developer-tools",
       "extendInfo": {
         "LSUIElement": true,
+        "CFBundleDisplayName": "开物Praxis",
+        "CFBundleName": "开物Praxis",
         "CFBundleAllowMixedLocalizations": true,
         "CFBundleDevelopmentRegion": "en",
         "CFBundleLocalizations": [
@@ -162,7 +164,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "differentialPackage": false,
-      "shortcutName": "kaiwu",
+      "shortcutName": "开物Praxis",
       "uninstallerIcon": "build/app-icon.ico",
       "useZip": false,
       "artifactName": "kaiwu-${version}-${arch}-Setup.${ext}"
@@ -192,6 +194,7 @@
           "runtime/cli/**",
           "profiles/kaiwu/**",
           "package-cache/**",
+          "enterprise-plugins/**",
           "node/**",
           "primary-runtime/**",
           "office-skills/**",

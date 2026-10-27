@@ -1,0 +1,63 @@
+# 三节点售前样例 —— 使用前必须替换 IP、node1 上的私钥路径、版本
+# apiVersion / 角色字段名以现场 `./kc create config`（或 ./kk）生成为准
+# etcd.type 必须是 kubekey；写成 kubercon 会跳过 etcd 安装。
+# 无独立 VIP：保留 internalLoadbalancer: haproxy 且 address 为空。
+# 有独立 VIP：改 internalLoadbalancer: kube-vip，并把 address 写成 VIP。禁止空 VIP + kube-vip，也禁止填一个不存在的 IP。
+apiVersion: kubekey.kubesphere.io/v1alpha2
+kind: Cluster
+metadata:
+  name: sample
+spec:
+  hosts:
+  - {name: node1, arch: amd64, address: 10.10.10.11, internalAddress: 10.10.10.11, user: root, privateKeyPath: "/root/.ssh/id_rsa"}
+  - {name: node2, arch: amd64, address: 10.10.10.12, internalAddress: 10.10.10.12, user: root, privateKeyPath: "/root/.ssh/id_rsa"}
+  - {name: node3, arch: amd64, address: 10.10.10.13, internalAddress: 10.10.10.13, user: root, privateKeyPath: "/root/.ssh/id_rsa"}
+  roleGroups:
+    etcd:
+    - node1
+    - node2
+    - node3
+    control-plane:
+    - node1
+    - node2
+    - node3
+    worker:
+    - node1
+    - node2
+    - node3
+    registry:
+    - node1
+  controlPlaneEndpoint:
+    internalLoadbalancer: haproxy
+    domain: lb.kubercon.local
+    address: ""
+    port: 6443
+  kubernetes:
+    version: v1.28.15
+    clusterName: cluster.local
+    autoRenewCerts: true
+    containerManager: containerd
+  etcd:
+    type: kubekey
+    dataDir: /var/lib/etcd
+  network:
+    plugin: calico
+    kubePodsCIDR: 10.233.64.0/18
+    kubeServiceCIDR: 10.233.0.0/18
+    calico:
+      ipipMode: Never
+      vxlanMode: Always
+    multusCNI:
+      enabled: false
+  storage:
+    openebs:
+      basePath: /var/openebs/local
+  registry:
+    type: registry
+    privateRegistry: "docker.kubercon.local"
+    # V22.6 离线包镜像在仓库命名空间 kubercon/
+    namespaceOverride: "kubercon"
+    registryMirrors: []
+    insecureRegistries: []
+    auths: {}
+  addons: []

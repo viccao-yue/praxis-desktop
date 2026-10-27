@@ -641,9 +641,14 @@ export class SkillManager extends Service implements SkillManagementService {
   }
 
   private async fromDefinition(definition: SkillDefinition): Promise<ManagedSkillDetail | undefined> {
+    // Bundled directory skills (resourceBase) must expose directoryPath so experts
+    // can freeze/retain them even when they are not under a managed install root.
+    const bundledDir = definition.resourceBase?.kind === 'directory' ? definition.resourceBase.path : undefined;
     const readonlyDetail: ManagedSkillDetail = {
       name: definition.name, description: definition.description, whenToUse: definition.whenToUse,
-      modelInvocable: definition.invocation.modelInvocable, state: 'readonly', manageable: false, resources: [],
+      modelInvocable: definition.invocation.modelInvocable, state: 'readonly', manageable: false,
+      resources: bundledDir ? await resourceFiles(bundledDir) : [],
+      ...(bundledDir ? { directoryPath: bundledDir } : {}),
     };
     if (!definition.path) return readonlyDetail;
     const active = await this.managedEntryForPath(definition.path);

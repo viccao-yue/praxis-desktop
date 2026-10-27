@@ -1,0 +1,84 @@
+# 已有 Kubernetes 上安装平台 —— 轻量样例（模式 C，人工确认后 apply）
+# 使用前必须改：registry、tag、storageClass、adminPassword
+# 必须先 apply 同包 templates/kubercon-installer-v22.6.0.yaml，等 Deployment Available，
+# 再 apply 本文件；仅 apply CC 不会创建 installer。
+# 禁止把其他环境的旧 cc 整份原样 apply
+# 禁止假设本仓库路径在客户机器上存在；把改好的文件拷到有 kubeconfig 的机器再 apply
+#
+# DeepFlow：v22.06 产品默认开启，ClickHouse 声明 200Gi。
+# 本轻量样例显式关掉；要演示链路追踪须改 enabled: true，并确认默认 StorageClass 能配出 200Gi。
+---
+apiVersion: installer.kubercloud.com/v1alpha1
+kind: ClusterConfiguration
+metadata:
+  name: kubercon-installer
+  namespace: kubercon-system
+  labels:
+    version: v22.6.0
+spec:
+  persistence:
+    storageClass: ""          # 空=用默认 SC；没有默认 SC 时必须填写
+  authentication:
+    adminPassword: "REPLACE_ADMIN_PASSWORD"
+    jwtSecret: ""
+  local_registry: ""
+  kubercon_registry: "docker.changqingyun.cn/"
+  hub_registry: "docker.changqingyun.cn/kubercon/"
+  pull_policy: IfNotPresent
+  kubercon_tag: "v22.6.0"
+  etcd:
+    monitoring: false
+    endpointIps: localhost
+    port: 2379
+    tlsEnable: true
+  common:
+    core:
+      console:
+        enableMultiLogin: true
+        port: 30880
+        type: NodePort
+    redis:
+      enabled: false
+    openldap:
+      enabled: false
+    minio:
+      volumeSize: 20Gi
+    opensearch:
+      enabled: true
+  alerting:
+    enabled: false
+  auditing:
+    enabled: false
+  devops:
+    enabled: false
+  events:
+    enabled: false
+  logging:
+    enabled: false
+  metrics_server:
+    enabled: false
+  monitoring:
+    enabled: true
+  multicluster:
+    clusterRole: none         # 单集群装平台用 none；官方模板默认 host（会带联邦相关）
+  network:
+    networkpolicy:
+      enabled: false
+  openpitrix:
+    store:
+      enabled: false
+  servicemesh:
+    enabled: false
+  gatekeeper:
+    enabled: false
+  edgeruntime:
+    enabled: false
+  deepflow:
+    enabled: false
+    storageClass: ""
+    server:
+      replicas: 1
+    clickhouse:
+      volumeSize: 200Gi
+      replicas: 1
+    retentionDays: 30

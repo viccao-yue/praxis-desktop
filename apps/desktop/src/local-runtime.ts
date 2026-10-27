@@ -14,8 +14,27 @@ const BASE_STATE = '.workdsh-desktop-base.json'
 const json = (file: string): ProfilePackage => JSON.parse(readFileSync(file, 'utf8')) as ProfilePackage
 const writeJson = (file: string, value: unknown): void => writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { mode: 0o600 })
 function memberDefaults(release: ProfilePackage): ProfilePackage {
+  const dependencies: Record<string, string> = {}
+  // Carry 企业连接 into new personal Homes when the bundled Profile ships it.
+  const connection = release.optionalDependencies?.['workdsh-enterprise-connection']
+    ?? release.dependencies?.['workdsh-enterprise-connection']
+  if (typeof connection === 'string') dependencies['workdsh-enterprise-connection'] = connection
+  const dsh = release.dsh ? structuredClone(release.dsh) : undefined
+  // Keep personal bundles free of enterprise activation; connection package is install-only until login.
+  if (dsh?.profile?.bundles) {
+    dsh.profile.bundles = dsh.profile.bundles.filter(name => !name.startsWith('workdsh-provider-identity-enterprise')
+      && !name.startsWith('workdsh-plugin-enterprise-collaboration')
+      && name !== 'workdsh-enterprise-connection')
+  }
   return { name: 'workdsh-member-profile', private: true, type: 'module', packageManager: release.packageManager,
-    dependencies: {}, ...(release.dsh ? { dsh: structuredClone(release.dsh) } : {}) }
+    dependencies, ...(dsh ? { dsh } : {}) }
+}
+
+/** IM 机器人 stays under Settings; hide the duplicate sidebar entry by default. */
+function hideImSidebar(home: string): void {
+  const sidebar = join(home, 'integrations', 'dsh-im')
+  mkdirSync(sidebar, { recursive: true, mode: 0o700 })
+  writeJson(join(sidebar, 'sidebar-settings.json'), { version: 1, mode: 'hide' })
 }
 function baseDigest(source: string, base: ProfilePackage, version: string): string {
   const marker = join(source, '.workdsh-desktop-release.json')
@@ -110,6 +129,8 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
   const sourceCache = join(source, '..', '..', 'package-cache')
   if (existsSync(sourceCache)) cpSync(sourceCache, cache, { recursive: true, force: false, errorOnExist: false })
   syncBundledCompatibility(source, target, digest)
+  // Settings already lists IM机器人; do not also pin it in the personal sidebar.
+  hideImSidebar(home)
   // Caller installs changed dependencies with the pinned official package manager before marking success.
   if (changed) writeJson(state, { digest: previous?.digest ?? digest, base: previous?.base ?? base, pendingInstallation: true })
   else writeJson(state, { digest, base })
@@ -135,9 +156,7 @@ export function enterpriseSpace(userData: string, backend: string, actor: Enterp
   for (const name of ['home', 'dsh', 'agents', 'workspace', 'tmp', 'appdata', 'localappdata']) mkdirSync(join(root, name), { recursive: true, mode: 0o700 })
   const home = join(root, 'dsh')
   // Settings already contains IM机器人. Enterprise login does not add a second sidebar entry.
-  const sidebar = join(home, 'integrations', 'dsh-im')
-  mkdirSync(sidebar, { recursive: true, mode: 0o700 })
-  writeJson(join(sidebar, 'sidebar-settings.json'), { version: 1, mode: 'hide' })
+  hideImSidebar(home)
   return { root, home, deviceId }
 }
 
