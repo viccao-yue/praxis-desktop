@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const runtime=resolve(process.argv[2]);
 const built=resolve(process.argv[3]);
-const profile=join(runtime,'profiles/workdsh');
+const profile=join(runtime,'profiles/kaiwu');
 const pkg=JSON.parse(await readFile(join(profile,'package.json'),'utf8'));
 assert.ok(!Object.keys(pkg.dependencies??{}).some(name=>/identity-enterprise|enterprise-collaboration/.test(name)));
 assert.ok(!(pkg.dsh?.profile?.bundles??[]).some(name=>/identity-enterprise|enterprise-collaboration/.test(name)));

@@ -12,7 +12,7 @@ import { verifyOfficialWebPackages } from './verify-profile-release.mjs'
 import { prepareHostSmokeProbe, hostSmokeEnvironment, waitForPackagedHostReady, scrubHostDiagnostics as scrub } from './packaged-host-smoke.mjs'
 
 const runtime = resolve(process.argv[2] ?? fileURLToPath(new URL('../build/workdsh-runtime', import.meta.url)))
-const source = join(runtime, 'profiles/workdsh')
+const source = join(runtime, 'profiles/kaiwu')
 const primary = join(runtime, 'primary-runtime')
 const executable = join(primary, 'dependencies/node/bin', process.platform === 'win32' ? 'node.exe' : 'node')
 const pnpm = join(primary, 'dependencies/pnpm/bin/pnpm.cjs')

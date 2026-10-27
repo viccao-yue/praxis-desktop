@@ -17,6 +17,7 @@
     "build/app-icon.ico",
     "build/app-icon.png",
     "build/app-icon-mac.png",
+    "build/connection-ui/praxis-wordmark.png",
     "build/tray-icon.svg",
     "build/tray-icon*.png",
     "lib/workdsh-main.js",
@@ -92,6 +93,7 @@
       "build/app-icon.ico",
       "build/app-icon.png",
       "build/app-icon-mac.png",
+      "build/connection-ui/praxis-wordmark.png",
       "build/tray-icon.svg",
       "build/tray-icon*.png",
       "lib/workdsh-main.js",
@@ -187,12 +189,12 @@
         "to": "workdsh-runtime",
         "filter": [
           "runtime/cli/**",
-          "profiles/workdsh/**",
+          "profiles/kaiwu/**",
           "package-cache/**",
           "node/**",
           "primary-runtime/**",
           "office-skills/**",
-          "!profiles/workdsh/node_modules/**/*.pdb"
+          "!profiles/kaiwu/node_modules/**/*.pdb"
         ]
       }
     ],

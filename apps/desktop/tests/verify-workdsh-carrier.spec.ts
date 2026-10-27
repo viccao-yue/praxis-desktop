@@ -27,7 +27,7 @@ describe('final copied public SDK exports', () => {
     const root = mkdtempSync(join(tmpdir(), 'workdsh-copied-sdk-'))
     const source = join(root, 'build/workdsh-runtime')
     const resources = join(root, 'WorkDSH.app/Contents/Resources/workdsh-runtime')
-    const relativeProfile = 'profiles/workdsh'
+    const relativeProfile = 'profiles/kaiwu'
     const sdk = 'workdsh-plugin-workbenches'
     const relativePackage = join(relativeProfile, 'node_modules', sdk)
     try {

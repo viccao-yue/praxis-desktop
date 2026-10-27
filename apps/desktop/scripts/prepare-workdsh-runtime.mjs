@@ -6,16 +6,20 @@ import { dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { DSH_VERSION, OFFICIAL_PNPM_VERSION } from './runtime-version.mjs'
-import { CATALOG_PACKAGES, ENTERPRISE_PACKAGES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
+import { CATALOG_PACKAGES, ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
 import { composeProfilePatches, verifyDefaultComposition, verifyDefaultProfile, verifyInstalledDshVersions, verifyOfficialWebPackages, verifyPackageDshReferences, verifyProfileRelease, verifyReleaseArchives } from './verify-profile-release.mjs'
 import { runtimeArchitecture, runtimeArchitectureYaml } from './runtime-architecture.mjs'
 import { patchAccountMenuAt } from '../../../scripts/praxis/patch-account-menu.mjs'
+import { patchSignInWaitingAt } from '../../../scripts/praxis/patch-signin-waiting.mjs'
 import { patchSkillhubPlazaAt } from '../../../scripts/praxis/patch-skillhub-plaza.mjs'
 import { patchSidebarIconsAt } from '../../../scripts/praxis/patch-sidebar-icons.mjs'
+import { patchPluginDisplayNamesAt } from '../../../scripts/praxis/patch-plugin-display-names.mjs'
 const architecture = runtimeArchitecture()
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = join(desktopRoot, 'build/workdsh-runtime')
-const profile = join(output, 'profiles/workdsh')
+const profile = join(output, 'profiles/kaiwu')
+const legacyProfile = join(output, 'profiles/workdsh')
+if (existsSync(legacyProfile) && !existsSync(profile)) renameSync(legacyProfile, profile)
 const cache = join(output, 'package-cache')
 const release = resolve(process.env.WORKDSH_RELEASE_DIRECTORY ?? join(desktopRoot, 'build/workdsh-profile-release'))
 const manifestFile = join(release, 'release-manifest.json')
@@ -77,10 +81,13 @@ function verifyInstalled() {
   }
   // Praxis: hide contact/signin; unsigned click opens settings.
   patchAccountMenuAt(profile)
+  // Praxis: hide the waiting-for-browser login modal; browser flow continues.
+  patchSignInWaitingAt(profile)
   // Praxis: 插件广场 only lists plugins; skills stay on 技能 · 连接器.
   patchSkillhubPlazaAt(profile)
   // Praxis: official 插件 / 自动化任务 glyphs match the owned sidebar set.
   patchSidebarIconsAt(profile)
+  patchPluginDisplayNamesAt(profile)
   for (const id of ['workdsh-installation-probe', 'workdsh-identity-local', 'workdsh-access', 'workdsh-audit', 'workdsh-workbenches']) {
     if (!config.stdout.includes('id: ' + id)) throw new Error('Missing required infrastructure: ' + id)
   }
@@ -104,7 +111,8 @@ if (!prepared) {
       '@deepseek-ai/dsh-plugin-manager': DSH_VERSION, '@deepseek-ai/dsh-agent-loop': DSH_VERSION,
       '@deepseek-ai/dsh-agent-preset-registry': DSH_VERSION, '@deepseek-ai/dsh-scope': DSH_VERSION,
       '@deepseek-ai/dsh-tool-workspace-dependencies': DSH_VERSION, '@deepseek-ai/dsh-skill-office': DSH_VERSION,
-      '@deepseek-ai/cordis-plugin-group': '1.0.4', ...manifest.requiredPeers, ...CATALOG_PACKAGES }
+      '@deepseek-ai/cordis-plugin-group': '1.0.4', '@deepseek-ai/dsh-experimental-auto-review': DSH_VERSION,
+      ...manifest.requiredPeers, ...CATALOG_PACKAGES }
     const optionalDependencies = {}
     for (const item of manifest.packages) {
       cpSync(join(release, item.filename), join(cache, item.filename))
@@ -112,7 +120,7 @@ if (!prepared) {
       target[item.name] = 'file:../../package-cache/' + item.filename
     }
     const pkg = { name: 'workdsh-desktop-profile', private: true, type: 'module', packageManager: `pnpm@${OFFICIAL_PNPM_VERSION}`, dependencies, optionalDependencies,
-      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...Object.keys(CATALOG_PACKAGES)] } } }
+      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...Object.keys(CATALOG_PACKAGES), ...PERSONAL_DEFAULT_EXTRA_BUNDLES] } } }
     writeFileSync(join(profile, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
     const overrides = Object.entries(manifest.runtimeOverrides ?? {}).map(([name, version]) => `  ${JSON.stringify(name)}: ${JSON.stringify(version)}`).join('\n')
     writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'autoInstallPeers: true\nstrictPeerDependencies: false\n' + runtimeArchitectureYaml(architecture) + 'overrides:\n' + overrides + '\n')
@@ -149,4 +157,4 @@ if (!prepared) {
   }
 }
 cpSync(join(profile, 'package.json'), join(output, 'profile-package.json'))
-console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features and no preinstalled enterprise plugins at ${output}; enterprise plugins require explicit installation`)
+console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) and no preinstalled enterprise plugins at ${output}`)

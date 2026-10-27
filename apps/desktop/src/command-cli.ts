@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   if (space.mode === 'enterprise' && (!existsSync(join(space.home, 'enterprise-auth.json')) || !existsSync(patch))) throw new Error('企业账号已退出，请重新登录 Desktop')
   if (!existsSync(launcher)) throw new Error('请先在 Desktop 打开此工作区，完成官方 Profile 初始化')
   const runtime = dirname(dirname(dirname(fileURLToPath(import.meta.url)))), primary = join(runtime, 'primary-runtime')
-  const basePatch = join(runtime, 'profiles/workdsh/cordis.patch.yml')
+  const basePatch = join(runtime, 'profiles/kaiwu/cordis.patch.yml')
   const patches = [...(existsSync(basePatch) ? ['--patch', basePatch] : []), ...(space.mode === 'enterprise' ? ['--patch', patch] : [])]
   const env = space.mode === 'enterprise' ? enterpriseEnvironment(space.root!, process.execPath, process.env) : { ...process.env }
   Object.assign(env, { DSH_HOME: space.home, DSH_AGENTS_HOME: space.mode === 'enterprise' ? join(space.root!, 'agents') : join(space.home, 'agents'), DSH_BUNDLED_PRIMARY_RUNTIME: primary, ELECTRON_RUN_AS_NODE: undefined })

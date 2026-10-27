@@ -24,7 +24,10 @@ import { cleanOwnedProcessTree, stopOwnedProcess, trackOwnedProcess } from './ow
 import { prepareRuntimePort, runtimePortConflict } from './runtime-port.ts'
 import { runOfficialCommand } from './official-command.ts'
 
+/** DSH logical profile and materialized user-home directory (`profiles/<name>`). */
 const PROFILE_NAME = 'kaiwu'
+/** Immutable bundled Profile directory under `workdsh-runtime` (prepared + packed). */
+const BUNDLED_PROFILE_NAME = 'kaiwu'
 const READY_PATTERN = /dsh web:\s+(http:\/\/127\.0\.0\.1:\d+\/?\?token=[^\s]+)/u
 
 let runtime: ChildProcess | undefined
@@ -47,7 +50,7 @@ let verifying = false
 function bundledProfileDirectory(): string {
   const overridden = process.env.WORKDSH_BUNDLED_PROFILE
   if (overridden !== undefined && overridden.length > 0) return overridden
-  return join(process.resourcesPath, 'workdsh-runtime', 'profiles', PROFILE_NAME)
+  return join(process.resourcesPath, 'workdsh-runtime', 'profiles', BUNDLED_PROFILE_NAME)
 }
 
 function runtimeHome(): string {
@@ -129,7 +132,7 @@ function openWindow(url: string, connection: DesktopConnection = { mode: 'person
     minHeight: 640,
     title: '开物Praxis',
     icon,
-    backgroundColor: '#111113',
+    backgroundColor: carrier ? '#F3F7FF' : '#111113',
     show: false,
     webPreferences: {
       contextIsolation: true,
@@ -143,7 +146,7 @@ function openWindow(url: string, connection: DesktopConnection = { mode: 'person
   entrySurface = carrier
   window.on('page-title-updated', (event, title) => {
     event.preventDefault()
-    const next = title.includes('WorkDSH') ? title.replaceAll('WorkDSH', '开物Praxis') : title
+    const next = title.replace(/WorkDSH|workdsh/giu, '开物Praxis')
     page.setTitle(next.length > 0 ? next : '开物Praxis')
   })
   if (connection.mode === 'enterprise') enterpriseWindows.add(page)
@@ -154,7 +157,7 @@ function openWindow(url: string, connection: DesktopConnection = { mode: 'person
   if (!carrier) {
     const origin = new URL(url).origin
     page.webContents.on('will-navigate', (event, target) => {
-      if (target === 'workdsh://entry' && window === page && !switching) {
+      if (target === 'praxis://entry' && window === page && !switching) {
         event.preventDefault()
         if (!enterprisePluginAvailable()) { dialog.showErrorBox('企业插件不可用', '请先安装兼容的企业账号插件。'); return }
         void returnToEntry()
@@ -205,10 +208,10 @@ async function prepareProfile(home: string): Promise<{ profile: string, existing
   const result = materializeRuntimeProfile(source, home)
   if (result.changed) {
     const entry = window
-    if (entry && !entry.isDestroyed()) await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml('正在更新工作区插件依赖')))
+    if (entry && !entry.isDestroyed()) await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml('plugins')))
     await officialCommand(home, ['plugin', '--profile', PROFILE_NAME, 'install'])
     markProfileUpdated(source, result.profile)
-    if (entry && !entry.isDestroyed()) await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml(enterprise ? '正在启动企业工作区' : '正在启动个人工作区')))
+    if (entry && !entry.isDestroyed()) await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml(enterprise ? 'enterprise' : 'personal')))
   }
   officialLauncher(source, home, bundledNodeExecutable(), join(bundledPrimaryRuntime(), 'dependencies', 'pnpm', 'bin', 'pnpm.cjs'))
   return { profile: result.profile, existingHome }
@@ -365,7 +368,7 @@ function connectEntryNavigation(entry: BrowserWindow): void {
       switching = true
       try {
         const command = new URL(target)
-        if (command.protocol !== 'kaiwu:') return
+        if (command.protocol !== 'praxis:') return
         if (command.hostname === 'enterprise') {
           if (enterprise) throw new Error('请先退出当前企业账号再修改后台地址')
           const connection = enterpriseConnection(managedBackend ?? command.searchParams.get('portal') ?? '')
@@ -377,7 +380,7 @@ function connectEntryNavigation(entry: BrowserWindow): void {
         } else if (command.hostname === 'personal') {
           if (enterprise) await leaveWorkspace()
           const home = runtimeHome()
-          await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml('正在启动个人工作区')))
+          await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml('personal')))
           const prepared = await prepareProfile(home)
           entrySurface = false
           await startRuntime(home, { mode: 'personal' }, [], prepared.existingHome)
@@ -420,7 +423,7 @@ async function activateEnterprise(existingHome: boolean): Promise<void> {
   const patch = desktopEnterprisePatch(session.home, session.authority, session.login.actor, session.login.backendUrl, session.deviceId, pluginNames.includes('workdsh-plugin-enterprise-collaboration'))
   session.authFile = patch.authFile
   const connection: DesktopConnection = { mode: 'enterprise', portalOrigin: session.login.backendUrl, organizationId: session.login.actor.organizationId, principalId: session.login.actor.id }
-  if (window) await window.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml('正在启动企业工作区')))
+  if (window) await window.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml('enterprise')))
   entrySurface = false
   await startRuntime(session.home, connection, [patch.patch], existingHome)
   verifyTimer = setInterval(() => {

@@ -1,5 +1,5 @@
 import { load as loadYaml, dump as dumpYaml, Type as YamlType, DEFAULT_SCHEMA } from 'js-yaml'
-import { ENTERPRISE_PACKAGES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
+import { ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
 import { createHash } from 'node:crypto'
 import { existsSync, globSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
@@ -63,6 +63,11 @@ export function verifyDefaultProfile(manifest) {
   ]) {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(`Desktop ${kind} changed: expected ${expected.join(', ')}, found ${actual.join(', ')}`)
+    }
+  }
+  for (const name of PERSONAL_DEFAULT_EXTRA_BUNDLES) {
+    if (!(manifest.dsh?.profile?.bundles ?? []).includes(name)) {
+      throw new Error('Desktop personal default bundle missing: ' + name)
     }
   }
 }

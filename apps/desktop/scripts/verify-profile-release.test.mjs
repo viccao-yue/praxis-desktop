@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, delimiter, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DSH_VERSION } from './runtime-version.mjs'
-import { ENTERPRISE_PACKAGES, PACKAGE_DIRECTORIES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
+import { ENTERPRISE_PACKAGES, PACKAGE_DIRECTORIES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
 
 test('release bootstrap installs dependencies before loading package validators', () => {
   const directory = mkdtempSync(join(tmpdir(), 'kaiwu clean release '))
@@ -96,7 +96,7 @@ function defaultProfile() {
   return {
     dependencies: Object.fromEntries(PRODUCT_PACKAGES.map(name => [name, 'file:../cache.tgz'])),
     optionalDependencies: Object.fromEntries(RELEASE_PACKAGES.filter(name => !PRODUCT_PACKAGES.includes(name)).map(name => [name, 'file:../cache.tgz'])),
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES] } },
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...PERSONAL_DEFAULT_EXTRA_BUNDLES] } },
   }
 }
 
@@ -133,8 +133,7 @@ test('enterprise delivery cannot activate or expose enterprise identity in the d
   selected.dsh.profile.bundles.push(ENTERPRISE_PACKAGES[0])
   assert.throws(() => verifyDefaultProfile(selected), /selected features changed/)
   const exposed = defaultProfile()
-  exposed.dependencies[ENTERPRISE_PACKAGES[0]] = exposed.optionalDependencies[ENTERPRISE_PACKAGES[0]]
-  delete exposed.optionalDependencies[ENTERPRISE_PACKAGES[0]]
+  exposed.dependencies[ENTERPRISE_PACKAGES[0]] = 'file:../external-identity.tgz'
   assert.throws(() => verifyDefaultProfile(exposed), /direct features changed/)
   assert.doesNotThrow(() => verifyDefaultComposition('- id: workdsh-identity-local\n  name: workdsh-provider-identity-local\n'))
   assert.throws(() => verifyDefaultComposition('- insert:\n    - id: workdsh-identity-enterprise\n      name: workdsh-provider-identity-enterprise\n'), /active in the default personal composition/)
@@ -143,7 +142,7 @@ test('enterprise delivery cannot activate or expose enterprise identity in the d
 
 test('default Profile rejects a missing or duplicate feature and exposed infrastructure', () => {
   const missing = defaultProfile()
-  missing.dsh.profile.bundles.pop()
+  missing.dsh.profile.bundles = missing.dsh.profile.bundles.filter(name => name !== PRODUCT_PACKAGES.at(-1))
   assert.throws(() => verifyDefaultProfile(missing), /selected features changed/)
   const duplicate = defaultProfile()
   duplicate.dsh.profile.bundles.push(PRODUCT_PACKAGES[0])
