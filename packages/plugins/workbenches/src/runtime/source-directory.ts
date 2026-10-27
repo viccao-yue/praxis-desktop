@@ -22,7 +22,7 @@ export async function verifyWorkbenchSourceDirectory(fs: Pick<FileSystem,'resolv
   catch { throw new Error('workbench/source-package-invalid'); }
   const record = value && typeof value === 'object' ? value as Record<string, unknown> : undefined;
   const kaiwu = record?.workdsh && typeof record.workdsh === 'object' ? record.workdsh as Record<string, unknown> : undefined;
-  const workbench = kaiwu?.workbench && typeof workdsh.workbench === 'object' ? workdsh.workbench as Record<string, unknown> : undefined;
+  const workbench = kaiwu?.workbench && typeof kaiwu.workbench === 'object' ? kaiwu.workbench as Record<string, unknown> : undefined;
   if (record?.name !== expected.packageName || workbench?.id !== expected.workbenchId) throw new Error('workbench/source-identity-mismatch');
   const after = await fs.stat(metadata,signal);
   if (!after || before.version !== after.version) throw new Error('workbench/source-changed');

@@ -39,7 +39,7 @@ export function probeInstalledWindowsRuntime(
       electronPlatformName: 'win32',
       arch: 1,
       packager: {
-        executableName: 'kaiwu',
+        executableName: 'WorkDSH',
         appInfo: { productFilename: 'WorkDSH' },
       },
     })

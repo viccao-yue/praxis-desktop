@@ -41,7 +41,7 @@ describe('macOS release artifact verification', () => {
       },
       {
         command: 'lipo',
-        args: [join(appPath, 'Contents', 'MacOS', 'kaiwu'), '-verify_arch', 'arm64'],
+        args: [join(appPath, 'Contents', 'MacOS', 'WorkDSH'), '-verify_arch', 'arm64'],
       },
       {
         command: 'codesign',
