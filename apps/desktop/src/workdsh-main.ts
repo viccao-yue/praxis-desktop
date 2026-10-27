@@ -395,9 +395,27 @@ function connectEntryNavigation(entry: BrowserWindow): void {
   })
 }
 
-function enterprisePluginAvailable():boolean {
- try{return installedEnterprisePlugins(join(runtimeHome(),'profiles',PROFILE_NAME),JSON.parse(readFileSync(join(bundledProfileDirectory(),'node_modules','@deepseek-ai','dsh','package.json'),'utf8')).version).includes('workdsh-provider-identity-enterprise')}
- catch{return false}
+function dshVersion(): string {
+  return JSON.parse(readFileSync(join(bundledProfileDirectory(), 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), 'utf8')).version
+}
+
+/** Prefer the personal Profile; fall back to the bundled optional 企业连接 media. */
+function enterprisePluginSource(): string | undefined {
+  const version = dshVersion()
+  const personal = join(runtimeHome(), 'profiles', PROFILE_NAME)
+  try {
+    if (installedEnterprisePlugins(personal, version).includes('workdsh-provider-identity-enterprise')) return personal
+  } catch { /* personal package.json may declare the connection before install finishes */ }
+  try {
+    if (installedEnterprisePlugins(bundledProfileDirectory(), version).includes('workdsh-provider-identity-enterprise')) {
+      return bundledProfileDirectory()
+    }
+  } catch { return undefined }
+  return undefined
+}
+
+function enterprisePluginAvailable(): boolean {
+  return enterprisePluginSource() !== undefined
 }
 
 async function activateEnterprise(existingHome: boolean): Promise<void> {
@@ -405,7 +423,15 @@ async function activateEnterprise(existingHome: boolean): Promise<void> {
   if (!session) throw new Error('请重新登录企业账号')
   await session.login.verify()
   if (quitRequested) throw new Error('启动已取消')
-  const pluginNames=await composeInstalledEnterprisePlugins(join(runtimeHome(),'profiles',PROFILE_NAME),join(session.home,'profiles',PROFILE_NAME),JSON.parse(readFileSync(join(bundledProfileDirectory(),'node_modules','@deepseek-ai','dsh','package.json'),'utf8')).version,bundledNodeExecutable(),join(bundledPrimaryRuntime(),'dependencies','pnpm','bin','pnpm.cjs'))
+  const source = enterprisePluginSource()
+  if (!source) throw new Error('请先安装兼容的企业账号插件')
+  const pluginNames = await composeInstalledEnterprisePlugins(
+    source,
+    join(session.home, 'profiles', PROFILE_NAME),
+    dshVersion(),
+    bundledNodeExecutable(),
+    join(bundledPrimaryRuntime(), 'dependencies', 'pnpm', 'bin', 'pnpm.cjs'),
+  )
   if(quitRequested||enterprise!==session)throw new Error('企业启动已取消')
   const manifest = join(session.home, 'profiles', PROFILE_NAME, 'package.json')
   const selected = JSON.parse(readFileSync(manifest, 'utf8')) as { dsh?: { profile?: { bundles?: string[] } } }

@@ -5,10 +5,15 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 const execute=promisify(execFile);
 export const enterprisePluginNames=['workdsh-provider-identity-enterprise','workdsh-plugin-enterprise-collaboration'] as const;
+type ProfileManifest={dependencies?:Record<string,string>,optionalDependencies?:Record<string,string>};
+function connectionSpec(manifest:ProfileManifest):string|undefined{
+ return manifest.dependencies?.['workdsh-enterprise-connection']
+  ?? manifest.optionalDependencies?.['workdsh-enterprise-connection'];
+}
 export function installedEnterprisePlugins(profile:string,version:string):string[]{
  if(!existsSync(join(profile,'package.json')))return [];
- const manifest=JSON.parse(readFileSync(join(profile,'package.json'),'utf8'));
- const bundle=manifest.dependencies?.['workdsh-enterprise-connection'];
+ const manifest=JSON.parse(readFileSync(join(profile,'package.json'),'utf8')) as ProfileManifest;
+ const bundle=connectionSpec(manifest);
  const bundleRoot=join(profile,'node_modules','workdsh-enterprise-connection');
  if(bundle&&!existsSync(join(bundleRoot,'package.json')))throw Error('企业连接包尚未完成安装');
  const names:string[]=[];
@@ -30,8 +35,8 @@ export async function composeInstalledEnterprisePlugins(source:string,target:str
  manifest.dependencies??={};
  // Pack installed code through the bundled package manager; do not copy Profile files or credentials.
  for(const name of names){
-  const sourceManifest=JSON.parse(readFileSync(join(source,'package.json'),'utf8'));
-  const directory=join(sourceManifest.dependencies?.['workdsh-enterprise-connection']?join(source,'node_modules','workdsh-enterprise-connection'):source,'node_modules',name);
+  const sourceManifest=JSON.parse(readFileSync(join(source,'package.json'),'utf8')) as ProfileManifest;
+  const directory=join(connectionSpec(sourceManifest)?join(source,'node_modules','workdsh-enterprise-connection'):source,'node_modules',name);
   const pkg=JSON.parse(readFileSync(join(directory,'package.json'),'utf8'));
   await execute(node,[pnpm,'pack','--pack-destination',archives],{cwd:directory,timeout:240000});
   const filename=name+'-'+pkg.version+'.tgz';

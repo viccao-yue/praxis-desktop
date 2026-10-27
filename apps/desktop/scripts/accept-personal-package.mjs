@@ -24,7 +24,7 @@ try {
  await entry.getByRole('heading',{name:'选择使用方式'}).waitFor({timeout:20000})
  report.checks.connectionEntry=true
  await entry.screenshot({path:join(directory,'entry.png')})
- report.checks.enterpriseRequiresInstallation=await entry.getByRole('button',{name:'请先安装企业账号插件',exact:true}).isDisabled()
+ report.checks.enterpriseLoginReady=await entry.getByRole('button',{name:'企业登录',exact:true}).isEnabled()
  await entry.getByRole('link',{name:'个人使用'}).click({noWaitAfter:true})
  const loading=await waitPage(p=>p.locator('[aria-busy=true]').count())
  report.checks.visibleLoadingTransition=true

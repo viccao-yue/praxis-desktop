@@ -43,6 +43,20 @@ it('uses official installation anchoring without a shared writable module symlin
   markProfileUpdated(source, first.profile)
   expect(materializeRuntimeProfile(source, home).changed).toBe(false)
 })
+it('carries bundled optional enterprise-connection into new Homes and schedules install', () => {
+  const { source, home, base } = fixture()
+  writeFileSync(join(source, 'package.json'), JSON.stringify({
+    ...base,
+    optionalDependencies: { 'workdsh-enterprise-connection': 'file:../../package-cache/workdsh-enterprise-connection-0.1.0-alpha.2.tgz' },
+  }))
+  const first = materializeRuntimeProfile(source, home)
+  expect(first.changed).toBe(true)
+  expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dependencies).toEqual({
+    'workdsh-enterprise-connection': 'file:../../package-cache/workdsh-enterprise-connection-0.1.0-alpha.2.tgz',
+  })
+  expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dsh.profile.bundles).not.toContain('workdsh-enterprise-connection')
+})
+
 it('isolates account/backend directories, device records and credential/skill environments', () => {
   const { root } = fixture()
   const actor = { id: 'A', organizationId: 'org', organizationName: 'Company', email: 'a@test', displayName: 'A', role: 'MEMBER' as const, mustChangePassword: false }

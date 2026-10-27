@@ -24,6 +24,8 @@ it('discovers both bundled enterprise plugins only while their connection packag
    const directory=join(bundle,'node_modules',name);mkdirSync(directory,{recursive:true});writeFileSync(join(directory,'package.json'),JSON.stringify({name,exports:{'./desktop':'./dist/desktop.js'},peerDependencies:{'@deepseek-ai/dsh':'0.2.0-rc.2'}}));
   }
   expect(installedEnterprisePlugins(root,'0.2.0-rc.2')).toHaveLength(2);
+  writeFileSync(join(root,'package.json'),JSON.stringify({optionalDependencies:{'workdsh-enterprise-connection':'file:./enterprise.tgz'}}));
+  expect(installedEnterprisePlugins(root,'0.2.0-rc.2')).toHaveLength(2);
   writeFileSync(join(root,'package.json'),'{}');expect(installedEnterprisePlugins(root,'0.2.0-rc.2')).toEqual([]);
  }finally{rmSync(root,{recursive:true,force:true})}
 });

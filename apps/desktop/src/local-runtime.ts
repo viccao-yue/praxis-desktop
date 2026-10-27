@@ -89,6 +89,8 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
   if (!existsSync(manifest)) {
     writeJson(manifest, base)
     writeFileSync(join(target, 'cordis.patch.yml'), '[]\n', { mode: 0o600 })
+    // Bundled optional media (e.g. 企业连接) is carried into member dependencies and must install.
+    changed = Object.keys(base.dependencies ?? {}).length > 0 || Object.keys(base.optionalDependencies ?? {}).length > 0
   } else if (previous?.digest !== digest) {
     if (!previous) throw new Error('已有 Profile 缺少 Desktop 版本记录；请在官方插件管理中核对后使用独立空间')
     const current = json(manifest)
@@ -119,8 +121,10 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
     for (const name of nextBundles) if (!oldBundles.includes(name) && !current.dsh.profile.bundles.includes(name)) current.dsh.profile.bundles.push(name)
     if (JSON.stringify(json(manifest)) !== JSON.stringify(current)) {
       writeJson(manifest, current)
-      // Only a changed local dependency graph requires package installation, not a refreshed bundle selection.
-      changed ||= ['dependencies', 'optionalDependencies'].some(section => JSON.stringify(previous.base[section]) !== JSON.stringify(base[section])) && existsSync(modules)
+      // Changed owned dependency graph requires install; new Homes may not have node_modules yet.
+      const depsChanged = ['dependencies', 'optionalDependencies'].some(section => JSON.stringify(previous.base[section]) !== JSON.stringify(base[section]))
+      const hasMemberDeps = Object.keys(base.dependencies ?? {}).length > 0 || Object.keys(base.optionalDependencies ?? {}).length > 0
+      changed ||= depsChanged && (existsSync(modules) || hasMemberDeps)
     }
   }
   const policyChanged = updatePackagePolicy(source, target)
