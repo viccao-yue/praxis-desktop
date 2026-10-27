@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/techflag/workdsh.git",
+    "url": "git+https://github.com/viccao-yue/praxis-desktop.git",
     "directory": "apps/desktop"
   },
   "type": "module",
@@ -65,8 +65,9 @@
     "vitest": "4.1.8"
   },
   "build": {
-    "appId": "io.techflag.dsh.ssh",
-    "productName": "WorkDSH",
+    "appId": "io.kaiwu.desktop",
+    "productName": "kaiwu",
+    "executableName": "kaiwu",
     "asar": {
       "smartUnpack": true
     },
@@ -102,7 +103,7 @@
       "!node_modules/**"
     ],
     "mac": {
-      "artifactName": "WorkDSH-${version}-${arch}.${ext}",
+      "artifactName": "kaiwu-${version}-${arch}.${ext}",
       "asarUnpack": [
         "build/app-icon-mac.png",
         "build/tray-iconTemplate.png",
@@ -147,7 +148,7 @@
           ]
         }
       ],
-      "artifactName": "WorkDSH-${version}-${arch}-Portable.${ext}",
+      "artifactName": "kaiwu-${version}-${arch}-Portable.${ext}",
       "icon": "build/app-icon.ico"
     },
     "nsis": {
@@ -161,10 +162,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "differentialPackage": false,
-      "shortcutName": "WorkDSH",
+      "shortcutName": "kaiwu",
       "uninstallerIcon": "build/app-icon.ico",
       "useZip": false,
-      "artifactName": "WorkDSH-${version}-${arch}-Setup.${ext}"
+      "artifactName": "kaiwu-${version}-${arch}-Setup.${ext}"
     },
     "linux": {
       "asarUnpack": [

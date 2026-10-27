@@ -146,7 +146,7 @@ function openWindow(url: string, connection: DesktopConnection = { mode: 'person
   entrySurface = carrier
   window.on('page-title-updated', (event, title) => {
     event.preventDefault()
-    const next = title.replace(/WorkDSH|workdsh/giu, '开物Praxis')
+    const next = title.replace(/WorkDSH|kaiwu|workdsh/giu, '开物Praxis')
     page.setTitle(next.length > 0 ? next : '开物Praxis')
   })
   if (connection.mode === 'enterprise') enterpriseWindows.add(page)
@@ -484,12 +484,12 @@ if (desktopUserData) {
   if (!isAbsolute(desktopUserData)) throw new Error('Desktop user data override must be absolute')
   app.setPath('userData', desktopUserData)
 }
-// Keep the existing user-data directory, then show 开物Praxis in menus.
-// CFBundleName stays WorkDSH so Electron can still find WorkDSH Helper.
+// Product binary is kaiwu; menus show 开物Praxis. Prefer the kaiwu userData
+// directory so packaged installs do not keep a WorkDSH data folder name.
 if (!desktopUserData) {
   app.setPath('userData', process.platform === 'win32'
-    ? join(process.env.APPDATA ?? '', '开物Praxis')
-    : join(homedir(), 'Library/Application Support/WorkDSH'))
+    ? join(process.env.APPDATA ?? '', 'kaiwu')
+    : join(homedir(), 'Library/Application Support/kaiwu'))
 }
 app.setName('开物Praxis')
 if (!app.requestSingleInstanceLock()) {

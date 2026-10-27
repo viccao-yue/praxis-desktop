@@ -27,7 +27,7 @@ const fixture = 'standalone-skill';
 const skillFile = join(home, 'agents/skills', fixture, 'SKILL.md');
 await mkdir(dirname(skillFile), { recursive: true });
 await writeFile(skillFile, `---\nname: ${fixture}\ndescription: Standalone package fixture\n---\nORIGINAL\n`);
-// WorkDSH-owned local catalog: metadata plus inert payload, installed through
+// kaiwu-owned local catalog: metadata plus inert payload, installed through
 // the same managed import path the browser upload uses.
 const catalogSkill = 'catalog-fixture';
 const catalogRoot = join(home, 'selected-catalog');

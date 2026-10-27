@@ -51,7 +51,7 @@ export function createElectronBuilderConfig(
   return {
     appId,
     // kaiwu TEST PATCH: kaiwu product branding.
-    productName: 'WorkDSH',
+    productName: 'kaiwu',
     artifactName: 'workdsh-${version}-${os}-${arch}.${ext}',
     directories: { output: buildPaths.artifacts },
     asar: true,
