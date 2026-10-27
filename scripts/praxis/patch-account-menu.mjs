@@ -9,9 +9,9 @@
  *   node scripts/praxis/patch-account-menu.mjs <profile-or-package-root>
  *   node scripts/praxis/patch-account-menu.mjs --self-test
  */
-import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { resolveProfilePackageFile } from './resolve-profile-module.mjs'
 
 const MARKER = '/* praxis-account-menu-patched */'
 
@@ -106,23 +106,11 @@ export function patchAccountMenuSource(source) {
 }
 
 function resolveClientBundle(root) {
-  const candidates = [
-    join(root, 'node_modules/@deepseek-ai/dsh-client-ui-settings-account/lib/client.js'),
-    join(root, 'lib/client.js'),
-    join(root, 'client.js'),
-  ]
-  for (const path of candidates) {
-    if (existsSync(path)) return realpathSync(path)
+  try {
+    return resolveProfilePackageFile(root, '@deepseek-ai/dsh-client-ui-settings-account', 'lib/client.js')
+  } catch (cause) {
+    throw new Error('AccountMenu patch: dsh-client-ui-settings-account client.js not found under ' + root, { cause })
   }
-  const pnpm = join(root, 'node_modules/.pnpm')
-  if (existsSync(pnpm)) {
-    for (const entry of readdirSync(pnpm)) {
-      if (!entry.startsWith('@deepseek-ai+dsh-client-ui-settings-account@')) continue
-      const path = join(pnpm, entry, 'node_modules/@deepseek-ai/dsh-client-ui-settings-account/lib/client.js')
-      if (existsSync(path)) return realpathSync(path)
-    }
-  }
-  throw new Error('AccountMenu patch: dsh-client-ui-settings-account client.js not found under ' + root)
 }
 
 export function patchAccountMenuAt(root) {
