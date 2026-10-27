@@ -995,4 +995,3 @@ kubectl -n kubercon-system rollout restart deploy/<组件> --dry-run=server
 3. 新增存储章节：默认 SC `local-path` 的两种实现（`rancher.io/local-path` 与 v22.6.0 的 `openebs.io/local`），同名不同物，仅测试用。
 4. 新增 kapis-only group 说明（`license.` / `branding.`），避免误以为 `kubectl get` 查不到就是没装。
 5. 新增 v22.6.0 版本特征判定，以及流式请求不记录审计响应体的说明。
-

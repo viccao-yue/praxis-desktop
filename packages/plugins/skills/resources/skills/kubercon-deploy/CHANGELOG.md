@@ -78,7 +78,7 @@
 
 ## 1.4.0 — 2026-09-15
 
-基于青云 POC 笔记：detect-local、rsync light/heavy、kk-artifact-then-cc、recover/fix/apply 文档化。  
+基于青云 POC 笔记：detect-local、rsync light/heavy、kk-artifact-then-cc、recover/fix/apply 文档化。
 （watchdog 接线在 1.4.0 不可靠，以 1.4.1+ 为准。）
 
 ## 1.3.0

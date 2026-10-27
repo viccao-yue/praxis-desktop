@@ -96,7 +96,7 @@ apt-get install -y socat conntrack ebtables ipset chrony screen tar gzip unzip r
 ```
 
 `python3` / `curl` 为硬性依赖：`fix-registry-containerd`、watchdog、`apply-platform-after-k8s` 都需要。
-无外网时，只有制品明确包含匹配该 OS 的 artifact 仓库才运行 `init os --artifact`。  
+无外网时，只有制品明确包含匹配该 OS 的 artifact 仓库才运行 `init os --artifact`。
 `init os` 没有 `--with-packages` 参数；该参数只属于部分 `create cluster` 实现。麒麟制品没有匹配 ISO 时按现场制品说明人工补依赖，并跳过 `init os`。
 
 ### 3.2 POC 常用系统调整
@@ -112,7 +112,7 @@ swapoff -a
 sed -i.bak '/^[^#].*swap/s/^/#/' /etc/fstab
 ```
 
-hosts（单节点示例；三节点写全三台 IP，**三台文件内容一致**）。  
+hosts（单节点示例；三节点写全三台 IP，**三台文件内容一致**）。
 公有云双地址：hosts / `docker.kubercon.local` 用**内网 IP**；config 里 `address` 可为公网，`internalAddress` 必须内网。
 
 ```text
@@ -215,7 +215,7 @@ KC_CONFIRMED_D6='确认 D6' ./scripts/start-create-cluster.sh
 KC_AUTONOMOUS=1 ./scripts/apply-platform-after-k8s.sh   # 或确认 D8I+D8C
 ```
 
-脚本会用已探测的 `--yes` 跳过安装器内部交互，但前提是外层已取得编号确认。  
+脚本会用已探测的 `--yes` 跳过安装器内部交互，但前提是外层已取得编号确认。
 成功标志必须精确为：`Pipeline[CreateClusterPipeline] execute successfully`（`Pipeline` 后没有空格），且状态文件为 `SUCCESS`。
 
 **已有独立 Harbor、不要本机 registry 时**：`KC_REGISTRY_MODE=external`，并在 config / 镜像侧指向客户仓库（需用户确认）。
@@ -233,12 +233,12 @@ kubectl get sc
 kubectl get ns | grep -E 'kubercon|kubesphere' && echo '已有平台命名空间，停止并人工评估'
 ```
 
-先设置精确的 `KC_EXPECT_APISERVER_HOST`、`KC_EXPECT_NODES` 并运行 `scripts/existing-k8s-preflight.sh`。  
-然后核对 `templates/kubercon-installer-v22.6.0.yaml` 的镜像，确认 D8I 后 apply；等待 installer Available。  
-最后修改 `templates/cluster-configuration-minimal.yaml`，确认 D8C 后 apply。  
-两份修改后的文件在复制/apply 前必须通过 `scripts/validate-mode-c-manifests.sh <installer> <cc>`，禁止遗留 `REPLACE_*`。  
-这两个文件随 standalone 技能包交付；只 apply CC 不会创建 installer。  
-v22.06 产品默认开 DeepFlow（ClickHouse 200Gi）；轻量样例显式为 `false`。  
+先设置精确的 `KC_EXPECT_APISERVER_HOST`、`KC_EXPECT_NODES` 并运行 `scripts/existing-k8s-preflight.sh`。
+然后核对 `templates/kubercon-installer-v22.6.0.yaml` 的镜像，确认 D8I 后 apply；等待 installer Available。
+最后修改 `templates/cluster-configuration-minimal.yaml`，确认 D8C 后 apply。
+两份修改后的文件在复制/apply 前必须通过 `scripts/validate-mode-c-manifests.sh <installer> <cc>`，禁止遗留 `REPLACE_*`。
+这两个文件随 standalone 技能包交付；只 apply CC 不会创建 installer。
+v22.06 产品默认开 DeepFlow（ClickHouse 200Gi）；轻量样例显式为 `false`。
 **不要**对已有平台集群再执行 `create cluster`。
 
 ## 7. 端口（POC 最低集）
@@ -267,7 +267,7 @@ kubectl get cc -n kubercon-system
 kubectl get sc
 ```
 
-浏览器：`http://<node1或入口IP>:30880`  
+浏览器：`http://<node1或入口IP>:30880`
 默认账号以制品说明为准。上传已签名 `.lic` 后再演示创建企业空间。
 
 ## 9. 与生产的边界（须告知用户）

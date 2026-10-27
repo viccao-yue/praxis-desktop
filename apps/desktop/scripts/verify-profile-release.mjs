@@ -55,11 +55,22 @@ export function verifyOfficialWebPackages(manifest, profile, config) {
 export function verifyDefaultProfile(manifest) {
   const selected = (manifest.dsh?.profile?.bundles ?? []).filter(name => name.startsWith('workdsh-')).sort()
   const direct = Object.keys(manifest.dependencies ?? {}).filter(name => name.startsWith('workdsh-')).sort()
-  const installed = [...direct, ...Object.keys(manifest.optionalDependencies ?? {}).filter(name => name.startsWith('workdsh-'))].sort()
+  const optional = Object.keys(manifest.optionalDependencies ?? {}).filter(name => name.startsWith('workdsh-')).sort()
+  // Enterprise connection may ship as optional install media; identity/collaboration stay out of the base Profile.
+  for (const name of ENTERPRISE_PACKAGES) {
+    if (direct.includes(name)) throw new Error('Desktop must not require enterprise package: ' + name)
+    if (name !== 'workdsh-enterprise-connection' && optional.includes(name)) {
+      throw new Error('Desktop must not optionally install enterprise package: ' + name)
+    }
+  }
+  const installed = [...direct, ...optional].sort()
+  const expectedClosure = [...RELEASE_PACKAGES]
+  if (optional.includes('workdsh-enterprise-connection')) expectedClosure.push('workdsh-enterprise-connection')
+  expectedClosure.sort()
   for (const [kind, actual, expected] of [
     ['selected features', selected, PRODUCT_PACKAGES],
     ['direct features', direct, PRODUCT_PACKAGES],
-    ['owned dependency closure', installed, [...RELEASE_PACKAGES].sort()],
+    ['owned dependency closure', installed, expectedClosure],
   ]) {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(`Desktop ${kind} changed: expected ${expected.join(', ')}, found ${actual.join(', ')}`)

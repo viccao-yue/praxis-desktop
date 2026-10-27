@@ -368,7 +368,7 @@ except Exception:
     sys.exit(0)
 for m in d.get('nodePathMap',[]):
     print('  %-42s %s' % (m.get('node'), ','.join(m.get('paths',[]))))
-" 
+"
   echo "  → 不要照抄文档里的 /opt/local-path-provisioner，以上面实际值为准。"
 else
   echo "  未找到 kube-system/local-path-config（可能用 OpenEBS 方案或其他存储）。"

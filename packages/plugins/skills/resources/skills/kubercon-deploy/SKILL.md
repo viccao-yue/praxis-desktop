@@ -32,37 +32,37 @@ compatibility: >-
 
 ## 0. 三条硬性纪律
 
-**1. 每个危险步骤必须按编号确认。**  
+**1. 每个危险步骤必须按编号确认。**
 用户只说「帮我全部装好 / 继续 / 是」不够。必须先打印：步骤编号、目标 IP、完整命令、影响范围；用户回复包含 **`确认 D2`** 这种编号后才执行该步。未回复对应编号前**禁止执行**。
 
 危险步骤：关 SELinux / 防火墙、格式化数据盘、改 `/etc/fstab`、写 `config.yaml`、`init os`、`create cluster`、`delete cluster`、`ssh-copy-id`、对已有集群 apply 安装器 / ClusterConfiguration。
 
-**2. 本机 SSH 远程驱动，安装命令只在安装节点执行。**  
-- 单节点：所有安装器命令在该节点执行。  
-- 三节点：安装器命令**只在 node1** 执行；禁止在 node2/node3 再跑一遍安装。  
+**2. 本机 SSH 远程驱动，安装命令只在安装节点执行。**
+- 单节点：所有安装器命令在该节点执行。
+- 三节点：安装器命令**只在 node1** 执行；禁止在 node2/node3 再跑一遍安装。
 - 本机负责：SSH 连通、批量系统准备、把介质拷到 node1、远程触发安装与验收。
 
-**3. 失败先留日志，禁止未确认就 delete / 重跑 create cluster。**  
+**3. 失败先留日志，禁止未确认就 delete / 重跑 create cluster。**
 `create cluster` 失败或会话断开后，**禁止再执行一次安装**。先查状态文件、`screen -ls` 与日志。未与用户确认前禁止 `delete cluster`。远程安装器长任务必须进 screen；本地 rsync 不得错放进远程 screen。
 
 ## 1. 开场：选定模式并收集参数
 
 先问清并记录（缺一项就停，不要猜）：
 
-1. **拓扑模式**（三选一）  
-   - A. 单节点 POC（etcd + control-plane + worker + registry 同机）  
-   - B. 多节点正式交付（固定 3 control-plane+etcd，worker 0..N；inventory 驱动）  
-   - C. 已有 Kubernetes，只装常青云平台（**人工主导**，见第 6 节）  
-2. **节点清单**：IP、主机名、SSH 用户（默认 root）、端口（默认 22）、认证方式（密钥或已配置的 SSH config）。脚本为避免挂起启用 `BatchMode=yes`，**不支持交互密码**；只有密码时先由用户人工建立密钥登录（D9）。  
-3. **介质**：本机或节点上的安装器路径、离线包路径、`.sha256sum`；OS 发行版与架构是否与包一致  
-4. **版本**：Kubernetes 版本、平台版本标签（以离线包为准）  
-5. **网段**：是否占用 `10.233.0.0/16`；若冲突，客户给出的 Pod/Service CIDR  
-6. **控制面入口**：无 VIP / 有独立 VIP / 已有外部 LB（见第 5.1 节，缺这项不准写三节点 config）  
-7. **集群身份**：预期 API server 主机；若 kubeconfig 使用回环地址，还要先只读取得并让用户确认 `kube-system` Namespace UID  
-8. **License**：是否已有已签名 `.lic`  
+1. **拓扑模式**（三选一）
+   - A. 单节点 POC（etcd + control-plane + worker + registry 同机）
+   - B. 多节点正式交付（固定 3 control-plane+etcd，worker 0..N；inventory 驱动）
+   - C. 已有 Kubernetes，只装常青云平台（**人工主导**，见第 6 节）
+2. **节点清单**：IP、主机名、SSH 用户（默认 root）、端口（默认 22）、认证方式（密钥或已配置的 SSH config）。脚本为避免挂起启用 `BatchMode=yes`，**不支持交互密码**；只有密码时先由用户人工建立密钥登录（D9）。
+3. **介质**：本机或节点上的安装器路径、离线包路径、`.sha256sum`；OS 发行版与架构是否与包一致
+4. **版本**：Kubernetes 版本、平台版本标签（以离线包为准）
+5. **网段**：是否占用 `10.233.0.0/16`；若冲突，客户给出的 Pod/Service CIDR
+6. **控制面入口**：无 VIP / 有独立 VIP / 已有外部 LB（见第 5.1 节，缺这项不准写三节点 config）
+7. **集群身份**：预期 API server 主机；若 kubeconfig 使用回环地址，还要先只读取得并让用户确认 `kube-system` Namespace UID
+8. **License**：是否已有已签名 `.lic`
 9. **组件边界**：POC 默认**不开** DevOps / Service Mesh / 全量日志。v22.06 DeepFlow 产品默认开且 ClickHouse 要 200Gi，POC 资源不够须显式确认关闭。
 
-向用户复述参数表，确认无误后再进入预检。  
+向用户复述参数表，确认无误后再进入预检。
 **规格以实测为准**：`nproc` / `free -b` / `lsblk`，不以云控制台口头规格为准。
 
 ## 1.0 开场检查表（v1.7）
@@ -211,12 +211,12 @@ KC_TRANSFER_PHASE=heavy ./scripts/rsync-offline.sh   # 大包，可断点续传
 
 ## 4. 模式 A：单节点 POC
 
-1. **密钥**：不通则 `print-bootstrap-pubkey.sh` + 云控制台；同 IP 重建需 `确认 D9H` 再 `ssh-keygen -R`。  
-2. **挂盘前预检**：`KC_PREFLIGHT_PHASE=hardware ./scripts/preflight-ssh.sh`。规格不足可先 light 传介质，后扩容再 full。  
-3. **本机探测**：`KC_MEDIA_DIR=... ./scripts/detect-installer-local.sh`（确认 PROFILE 后再传大包）。  
-4. **light 传包** → **可选挂盘 + D2/D3**（D2 依赖必须含 `tar gzip unzip which screen python3 curl`）→ **heavy 传包**。  
-5. **最终预检**：`KC_PREFLIGHT_PHASE=full ./scripts/preflight-ssh.sh`；失败不得继续。  
-6. **远端复核**：`./scripts/detect-installer.sh`，记录 `INSTALLER` / `PROFILE` / `REGISTRY_MODE`。  
+1. **密钥**：不通则 `print-bootstrap-pubkey.sh` + 云控制台；同 IP 重建需 `确认 D9H` 再 `ssh-keygen -R`。
+2. **挂盘前预检**：`KC_PREFLIGHT_PHASE=hardware ./scripts/preflight-ssh.sh`。规格不足可先 light 传介质，后扩容再 full。
+3. **本机探测**：`KC_MEDIA_DIR=... ./scripts/detect-installer-local.sh`（确认 PROFILE 后再传大包）。
+4. **light 传包** → **可选挂盘 + D2/D3**（D2 依赖必须含 `tar gzip unzip which screen python3 curl`）→ **heavy 传包**。
+5. **最终预检**：`KC_PREFLIGHT_PHASE=full ./scripts/preflight-ssh.sh`；失败不得继续。
+6. **远端复核**：`./scripts/detect-installer.sh`，记录 `INSTALLER` / `PROFILE` / `REGISTRY_MODE`。
 7. **生成确定性单节点配置**（`确认 D4`）。不要使用 kk 默认双节点模板：
    ```bash
    export KC_PROFILE=kk-artifact-then-cc   # 以探测为准
@@ -226,10 +226,10 @@ KC_TRANSFER_PHASE=heavy ./scripts/rsync-offline.sh   # 大包，可断点续传
    KC_CONFIRMED_D4='确认 D4' ./scripts/prepare-single-node-config.sh
    # 自动 validate：hosts 恰好 1 个，四个 roleGroups 都只能是 node1
    ```
-   `privateKeyPath` 必须是 **node1 上**存在的私钥；公有云必须显式区分公网与内网地址（v1.7 起 kk 侧只用内网）。  
-8. **系统依赖**（`确认 D5`）：有匹配 artifact 时 `init os ...`。  
-9. **registry + 集群**：D6R（需 `KC_PROFILE`）→ D6（预检+validate+fix+watchdog）。  
-10. **平台**（`kk-artifact-then-cc`）：`apply-platform-after-k8s.sh`。  
+   `privateKeyPath` 必须是 **node1 上**存在的私钥；公有云必须显式区分公网与内网地址（v1.7 起 kk 侧只用内网）。
+8. **系统依赖**（`确认 D5`）：有匹配 artifact 时 `init os ...`。
+9. **registry + 集群**：D6R（需 `KC_PROFILE`）→ D6（预检+validate+fix+watchdog）。
+10. **平台**（`kk-artifact-then-cc`）：`apply-platform-after-k8s.sh`。
 11. **验收**：`accept-check.sh`；必须实际取得 200/302→`/login`，并用 CC 中 adminPassword 换取 token。写操作需正式 License（见 `references/SUCCESS-CRITERIA.md`）。
 
 ## 5. 模式 B：3 control-plane/etcd + 任意 worker
@@ -326,16 +326,16 @@ export KC_PLATFORM_REGISTRY_PORT=<443 或现场端口>
 ./scripts/existing-k8s-preflight.sh
 ```
 
-- 已有 `kubercon-system` / `kubesphere-system` → 禁止重复硬装  
-- 无默认 StorageClass → 先规划存储  
-- 核对本集群 API server 地址，避免装到别的集群  
-- 镜像是否可达（`docker.changqingyun.cn` 或客户 Harbor）；离线须先导入并改 registry 字段  
+- 已有 `kubercon-system` / `kubesphere-system` → 禁止重复硬装
+- 无默认 StorageClass → 先规划存储
+- 核对本集群 API server 地址，避免装到别的集群
+- 镜像是否可达（`docker.changqingyun.cn` 或客户 Harbor）；离线须先导入并改 registry 字段
 - v22.06 若要开 DeepFlow，确认能配出约 200Gi 的 ClickHouse PVC；POC 不够就在 cc 里显式 `deepflow.enabled: false`
 
 交付物均在 standalone 技能包内：
 
-1. `templates/kubercon-installer-v22.6.0.yaml`：CRD、Namespace、RBAC、installer Deployment。先核对镜像 registry/tag，与现场制品不一致就停。展示 diff，取得 `确认 D8I` 后由指定的人 apply，并等待 Deployment Available。  
-2. `templates/cluster-configuration-minimal.yaml`：改 registry/tag/storageClass/adminPassword/DeepFlow。展示 diff，取得 `确认 D8C` 后 apply。  
+1. `templates/kubercon-installer-v22.6.0.yaml`：CRD、Namespace、RBAC、installer Deployment。先核对镜像 registry/tag，与现场制品不一致就停。展示 diff，取得 `确认 D8I` 后由指定的人 apply，并等待 Deployment Available。
+2. `templates/cluster-configuration-minimal.yaml`：改 registry/tag/storageClass/adminPassword/DeepFlow。展示 diff，取得 `确认 D8C` 后 apply。
 
 两步不能颠倒；只 apply CC 不会创建 installer。禁止把旧环境整份 cc 直接 apply，也禁止以 `kc install installer` 代替这两个已审阅文件。
 
@@ -382,11 +382,11 @@ kubectl -n kubercon-system logs -l app=kubercon-installer --tail=100
 
 通过条件：
 
-1. 约定节点全部 `Ready`  
-2. 无持续的 `ImagePullBackOff` / `CrashLoopBackOff`  
-3. `kubercon-system` 中 `kubercon-apiserver`、`kubercon-controller-manager`、`kubercon-ui`、`kubercon-installer` 就绪（**不要猜成 ks-***）  
-4. 浏览器可打开 `http://<入口IP>:30880`，默认账号以离线包说明为准，首次登录后改密  
-5. 上传已签名 License 后，才能稳定做创建企业空间等写操作  
+1. 约定节点全部 `Ready`
+2. 无持续的 `ImagePullBackOff` / `CrashLoopBackOff`
+3. `kubercon-system` 中 `kubercon-apiserver`、`kubercon-controller-manager`、`kubercon-ui`、`kubercon-installer` 就绪（**不要猜成 ks-***）
+4. 浏览器可打开 `http://<入口IP>:30880`，默认账号以离线包说明为准，首次登录后改密
+5. 上传已签名 License 后，才能稳定做创建企业空间等写操作
 
 向用户说明：单节点不是 HA；多节点只有 D11 通过才能声明控制面 HA，`external-prod` 还依赖客户外部 LB/Harbor/共享存储 SLA；未签 License 不代表平台写功能可用。
 
@@ -415,22 +415,22 @@ Agent 在这一步只做三件事：
 
 ## 8. 失败处理原则
 
-1. 保留完整日志；说明卡在哪一步。  
-2. 对照 `references/TROUBLESHOOTING.md`。  
-3. 有残留或半装集群：停 + 收日志 + 转人，不要自动重装。  
-4. **不要**自动 `delete cluster`。  
+1. 保留完整日志；说明卡在哪一步。
+2. 对照 `references/TROUBLESHOOTING.md`。
+3. 有残留或半装集群：停 + 收日志 + 转人，不要自动重装。
+4. **不要**自动 `delete cluster`。
 5. 平台已部分起来时，改用 `kubercon-kubectl` 做只读巡检。
 
 ## 9. 禁止事项
 
-- 禁止手装 Docker / kubeadm 旁路安装器  
-- 禁止把 Kubernetes 版本改成客户随口说的版本  
-- 禁止在 8C16G POC 上默认开启 DevOps + Istio + 全量日志 + DeepFlow 200Gi  
-- 禁止把客户密码、License 私钥贴进可外传日志  
-- 禁止未确认就重装、删集群、或对半装集群再跑 `create cluster`  
-- 禁止在 node2/node3 重复执行安装  
-- 禁止把 `etcd.type` 写成 `kubercon`  
-- 禁止用本机随便一份 kubeconfig 做验收  
+- 禁止手装 Docker / kubeadm 旁路安装器
+- 禁止把 Kubernetes 版本改成客户随口说的版本
+- 禁止在 8C16G POC 上默认开启 DevOps + Istio + 全量日志 + DeepFlow 200Gi
+- 禁止把客户密码、License 私钥贴进可外传日志
+- 禁止未确认就重装、删集群、或对半装集群再跑 `create cluster`
+- 禁止在 node2/node3 重复执行安装
+- 禁止把 `etcd.type` 写成 `kubercon`
+- 禁止用本机随便一份 kubeconfig 做验收
 
 ## 10. 配套文件
 
@@ -476,6 +476,6 @@ Agent 在这一步只做三件事：
 | `scripts/validate-mode-c-manifests.sh` | 模式 C apply 前占位符/结构门禁 |
 | `CHANGELOG.md` | 版本变更 |
 
-模式 A/B：参数确认 → hardware 预检 → **本机 detect** → light 传 → D1/D2/D3 → heavy 传 → full 预检 → 远端 detect → D4…D6 →（kk-artifact 则平台 apply）。  
-模式 C：参数确认 → `existing-k8s-preflight.sh` → D8I → 等 installer Available → D8C。  
+模式 A/B：参数确认 → hardware 预检 → **本机 detect** → light 传 → D1/D2/D3 → heavy 传 → full 预检 → 远端 detect → D4…D6 →（kk-artifact 则平台 apply）。
+模式 C：参数确认 → `existing-k8s-preflight.sh` → D8I → 等 installer Available → D8C。
 两套门禁禁止混用。

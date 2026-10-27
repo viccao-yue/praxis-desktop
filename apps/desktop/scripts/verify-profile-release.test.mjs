@@ -105,11 +105,22 @@ test('Desktop ships the workbench platform with its default features and keeps b
   assert.deepEqual(ENTERPRISE_PACKAGES, ['workdsh-provider-identity-enterprise', 'workdsh-plugin-enterprise-collaboration', 'workdsh-enterprise-connection'])
   assert.equal(RELEASE_PACKAGES.length, 13)
   assert.doesNotThrow(() => verifyDefaultProfile(defaultProfile()))
-  for (const name of ['workdsh-plugin-office', 'workdsh-plugin-notifications', 'workdsh-plugin-quality-analysis', ...ENTERPRISE_PACKAGES]) {
+  const withConnection = defaultProfile()
+  withConnection.optionalDependencies['workdsh-enterprise-connection'] = 'file:../enterprise-connection.tgz'
+  assert.doesNotThrow(() => verifyDefaultProfile(withConnection))
+  for (const name of ['workdsh-plugin-office', 'workdsh-plugin-notifications', 'workdsh-plugin-quality-analysis']) {
     const profile = defaultProfile()
     profile.optionalDependencies[name] = 'file:../external.tgz'
     assert.throws(() => verifyDefaultProfile(profile), /owned dependency closure changed/)
   }
+  for (const name of ['workdsh-provider-identity-enterprise', 'workdsh-plugin-enterprise-collaboration']) {
+    const profile = defaultProfile()
+    profile.optionalDependencies[name] = 'file:../external.tgz'
+    assert.throws(() => verifyDefaultProfile(profile), /must not optionally install enterprise package/)
+  }
+  const requiredConnection = defaultProfile()
+  requiredConnection.dependencies['workdsh-enterprise-connection'] = 'file:../enterprise-connection.tgz'
+  assert.throws(() => verifyDefaultProfile(requiredConnection), /must not require enterprise package/)
 })
 
 test('Desktop archives close every declared owned runtime dependency and include workbench delivery entry points', () => {
@@ -134,7 +145,7 @@ test('enterprise delivery cannot activate or expose enterprise identity in the d
   assert.throws(() => verifyDefaultProfile(selected), /selected features changed/)
   const exposed = defaultProfile()
   exposed.dependencies[ENTERPRISE_PACKAGES[0]] = 'file:../external-identity.tgz'
-  assert.throws(() => verifyDefaultProfile(exposed), /direct features changed/)
+  assert.throws(() => verifyDefaultProfile(exposed), /must not require enterprise package/)
   assert.doesNotThrow(() => verifyDefaultComposition('- id: workdsh-identity-local\n  name: workdsh-provider-identity-local\n'))
   assert.throws(() => verifyDefaultComposition('- insert:\n    - id: workdsh-identity-enterprise\n      name: workdsh-provider-identity-enterprise\n'), /active in the default personal composition/)
   assert.throws(() => verifyDefaultComposition('- name: workdsh-provider-identity-enterprise/desktop\n'), /active in the default personal composition/)
