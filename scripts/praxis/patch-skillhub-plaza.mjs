@@ -7,9 +7,9 @@
  *   node scripts/praxis/patch-skillhub-plaza.mjs <profile-or-package-root>
  *   node scripts/praxis/patch-skillhub-plaza.mjs --self-test
  */
-import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { resolveProfilePackageFile } from './resolve-profile-module.mjs'
 
 const MARKER = '/* praxis-skillhub-plaza-patched */'
 const PANEL_MARKER = '/* praxis-skillhub-plaza-panel */'
@@ -119,22 +119,11 @@ function repairPlazaIcons(source) {
 }
 
 function resolveClientBundle(root) {
-  const candidates = [
-    join(root, 'node_modules/@cocofhu/skillhub/lib/client.js'),
-    join(root, 'lib/client.js'),
-  ]
-  for (const path of candidates) {
-    if (existsSync(path)) return realpathSync(path)
+  try {
+    return resolveProfilePackageFile(root, '@cocofhu/skillhub', 'lib/client.js')
+  } catch (cause) {
+    throw new Error('SkillHub plaza patch: @cocofhu/skillhub client.js not found under ' + root, { cause })
   }
-  const pnpm = join(root, 'node_modules/.pnpm')
-  if (existsSync(pnpm)) {
-    for (const entry of readdirSync(pnpm)) {
-      if (!entry.includes('skillhub@') && !entry.includes('+skillhub@')) continue
-      const path = join(pnpm, entry, 'node_modules/@cocofhu/skillhub/lib/client.js')
-      if (existsSync(path)) return realpathSync(path)
-    }
-  }
-  throw new Error('SkillHub plaza patch: @cocofhu/skillhub client.js not found under ' + root)
 }
 
 export function patchSkillhubPlazaAt(root) {

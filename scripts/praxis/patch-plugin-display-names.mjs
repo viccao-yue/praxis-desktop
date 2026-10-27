@@ -6,13 +6,14 @@
  *   node scripts/praxis/patch-plugin-display-names.mjs <profile-or-package-root>
  *   node scripts/praxis/patch-plugin-display-names.mjs --self-test
  */
-import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, globSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveProfilePackageFile } from './resolve-profile-module.mjs'
 
 const MARKER = '/* praxis-plugin-display-names-patched */'
-const BUNDLE = '@deepseek-ai/dsh-client-ui-plugin-manager/lib/client.js'
-const PNPM_PREFIX = '@deepseek-ai+dsh-client-ui-plugin-manager@'
+const PACKAGE_NAME = '@deepseek-ai/dsh-client-ui-plugin-manager'
+const BUNDLE = PACKAGE_NAME + '/lib/client.js'
 
 export function praxisUiPluginLabel(text) {
   return typeof text === 'string' ? text.replace(/workdsh-/g, '') : text
@@ -82,29 +83,22 @@ export function patchPluginDisplayNamesSource(source) {
 }
 
 function resolveBundle(root) {
-  const direct = join(root, 'node_modules', BUNDLE)
-  if (existsSync(direct)) return realpathSync(direct)
-  const pnpm = join(root, 'node_modules/.pnpm')
-  if (existsSync(pnpm)) {
-    for (const entry of readdirSync(pnpm)) {
-      if (!entry.includes('dsh-client-ui-plugin-manager')) continue
-      const path = join(pnpm, entry, 'node_modules', BUNDLE)
-      if (existsSync(path)) return realpathSync(path)
-    }
+  try {
+    return resolveProfilePackageFile(root, PACKAGE_NAME, 'lib/client.js')
+  } catch (cause) {
+    throw new Error('Plugin display patch: missing ' + BUNDLE, { cause })
   }
-  throw new Error('Plugin display patch: missing ' + BUNDLE)
 }
 
 export function patchPluginDisplayNamesAt(root) {
   const targets = new Set()
   targets.add(resolveBundle(root))
-  const pnpm = join(root, 'node_modules/.pnpm')
-  if (existsSync(pnpm)) {
-    for (const entry of readdirSync(pnpm)) {
-      if (!entry.includes('dsh-client-ui-plugin-manager')) continue
-      const path = join(pnpm, entry, 'node_modules', BUNDLE)
-      if (existsSync(path)) targets.add(realpathSync(path))
-    }
+  for (const match of globSync(`**/node_modules/${PACKAGE_NAME}/lib/client.js`, {
+    cwd: resolve(root),
+    absolute: true,
+    nodir: true,
+  })) {
+    if (existsSync(match)) targets.add(realpathSync(match))
   }
   const results = []
   for (const file of targets) {

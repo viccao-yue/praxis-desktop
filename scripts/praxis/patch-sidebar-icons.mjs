@@ -7,9 +7,9 @@
  *   node scripts/praxis/patch-sidebar-icons.mjs <profile-or-package-root>
  *   node scripts/praxis/patch-sidebar-icons.mjs --self-test
  */
-import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { resolveProfilePackageFile } from './resolve-profile-module.mjs'
 
 const MARKER = '/* praxis-sidebar-icons-patched */'
 
@@ -17,15 +17,13 @@ const svg = (d) => `return (0, react_jsx_runtime.jsx)("svg", { width: size, heig
 
 const replacements = [
   {
-    file: '@deepseek-ai/dsh-client-ui-schedule/lib/client.js',
-    prefix: '@deepseek-ai+dsh-client-ui-schedule@',
+    packageName: '@deepseek-ai/dsh-client-ui-schedule',
     from: 'return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconClockOutlineRegular, { size });',
     to: svg('M12 7.5v5l3.5 2M5.2 4.2L3 6.5M18.8 4.2L21 6.5M5.2 19.8L3 17.5M18.8 19.8L21 17.5M21 12a9 9 0 11-18 0 9 9 0 0118 0'),
     expect: 'TaskManagerIcon',
   },
   {
-    file: '@deepseek-ai/dsh-client-ui-plugin-manager/lib/client.js',
-    prefix: '@deepseek-ai+dsh-client-ui-plugin-manager@',
+    packageName: '@deepseek-ai/dsh-client-ui-plugin-manager',
     from: 'return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconPluginPinwheelOutlineRegular, { size });',
     to: svg('M9 3v4M15 3v4M7 7h10v6a5 5 0 01-10 0V7zM12 18v3'),
     expect: 'PluginsPanelIcon',
@@ -33,17 +31,11 @@ const replacements = [
 ]
 
 function resolveBundle(root, spec) {
-  const direct = join(root, 'node_modules', spec.file)
-  if (existsSync(direct)) return realpathSync(direct)
-  const pnpm = join(root, 'node_modules/.pnpm')
-  if (existsSync(pnpm)) {
-    for (const entry of readdirSync(pnpm)) {
-      if (!entry.startsWith(spec.prefix)) continue
-      const path = join(pnpm, entry, 'node_modules', spec.file)
-      if (existsSync(path)) return realpathSync(path)
-    }
+  try {
+    return resolveProfilePackageFile(root, spec.packageName, 'lib/client.js')
+  } catch (cause) {
+    throw new Error('Sidebar icon patch: missing ' + spec.packageName + '/lib/client.js', { cause })
   }
-  throw new Error('Sidebar icon patch: missing ' + spec.file)
 }
 
 /** Replace one official sidebar icon return. */
