@@ -54,7 +54,7 @@ if (source === 'local') {
     throw new Error(`The local Web release candidate is not a clean package of this commit: version=${manifest.version}/${version}, commit=${manifest.sourceCommit}/${commit}, sourceDirty=${manifest.sourceDirty}, changed=${changed || '(none)'}`)
   }
   run('Pack this commit\'s Desktop feature composition', process.execPath, [join(root, 'apps/desktop', 'scripts', 'pack-workdsh-profile.mjs'), webRoot, releaseDirectory])
-  run('Pack enterprise connection for personal preinstall', process.execPath, [join(webRoot, 'scripts/pack-enterprise-connection.mjs'), join(releaseDirectory, 'enterprise-plugins')])
+  run('Pack enterprise connection delivery archive', process.execPath, [join(webRoot, 'scripts/pack-enterprise-connection.mjs'), join(releaseDirectory, 'enterprise-plugins')])
   const desktopManifestPath = join(releaseDirectory, 'release-manifest.json')
   const desktopManifest = JSON.parse(readFileSync(desktopManifestPath, 'utf8'))
   if (desktopManifest.sourceCommit !== commit || desktopManifest.sourceDirty) {
