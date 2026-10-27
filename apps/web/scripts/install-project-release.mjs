@@ -219,5 +219,5 @@ if (!dryRun) {
 }
 if (!dryRun) await retainWorkbenchArchives(join(dshHome, 'profiles', profile), directory, installOrder.map(name => packages.get(name)));
 const profileCli = join(dshHome, 'profiles', profile, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js');
-console.log(`\nWorkDSH ${manifest.version} ${dryRun ? 'installation plan verified' : 'is installed'} in profile ${profile}.`);
+console.log(`\nkaiwu ${manifest.version} ${dryRun ? 'installation plan verified' : 'is installed'} in profile ${profile}.`);
 console.log(`Start it with: node ${JSON.stringify(profileCli)} --profile ${JSON.stringify(profile)}`);

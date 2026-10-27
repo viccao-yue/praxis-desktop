@@ -21,13 +21,13 @@ interface AppFixture {
 function fixture(arch:'arm64'|'x64'='arm64'): AppFixture {
   const root = mkdtempSync(join(tmpdir(), 'dsh-mac-smoke-'))
   temporaryRoots.push(root)
-  const contents = join(root, 'WorkDSH.app', 'Contents')
+  const contents = join(root, 'kaiwu.app', 'Contents')
   const macos = join(contents, 'MacOS')
   const resources = join(contents, 'Resources')
   mkdirSync(macos, { recursive: true })
   mkdirSync(resources, { recursive: true })
   const infoPlist = join(contents, 'Info.plist')
-  const executable = join(macos, 'WorkDSH')
+  const executable = join(macos, 'kaiwu')
   const appAsar = join(resources, 'app.asar')
   const modeOverrides = new Map<string, number>()
   writeFileSync(infoPlist, '<?xml version="1.0" encoding="UTF-8"?>')
@@ -58,8 +58,8 @@ function options(
   const value: MacSmokeVerificationOptions = {
     distDir: '/release/dist',
     targetArch: 'arm64',
-    productName: 'WorkDSH',
-    listDmgs: () => ['/release/dist/WorkDSH-2.0.1-arm64.dmg'],
+    productName: 'kaiwu',
+    listDmgs: () => ['/release/dist/kaiwu-2.0.1-arm64.dmg'],
     makeMountPoint: () => '/private/tmp/dsh-desktop-dmg-smoke-test',
     run: (command, args) => { calls.push({ command, args: [...args] }) },
     removeMountPoint,
@@ -101,18 +101,18 @@ describe('macOS DMG smoke artifact verification', () => {
   it('mounts one DMG and accepts a well-formed unsigned application bundle', () => {
     const value = fixture()
     const harness = options({ makeMountPoint: () => value.root }, value.modeOverrides)
-    const appPath = join(value.root, 'WorkDSH.app')
+    const appPath = join(value.root, 'kaiwu.app')
 
     expect(verifyMacSmoke(harness.value)).toEqual({
       appPath,
-      dmgPath: '/release/dist/WorkDSH-2.0.1-arm64.dmg',
+      dmgPath: '/release/dist/kaiwu-2.0.1-arm64.dmg',
     })
 
     expect(harness.calls).toEqual([
       {
         command: 'hdiutil',
         args: [
-          'attach', '/release/dist/WorkDSH-2.0.1-arm64.dmg',
+          'attach', '/release/dist/kaiwu-2.0.1-arm64.dmg',
           '-mountpoint', value.root, '-nobrowse', '-readonly',
         ],
       },
@@ -123,7 +123,7 @@ describe('macOS DMG smoke artifact verification', () => {
       },
       ...['python/bin/python3', 'node/bin/node'].map(entry => ({
         command: 'lipo',
-        args: [join(value.root, 'WorkDSH.app', 'Contents', 'Resources', 'workdsh-runtime', 'primary-runtime', 'dependencies', entry), '-verify_arch', 'arm64'],
+        args: [join(value.root, 'kaiwu.app', 'Contents', 'Resources', 'workdsh-runtime', 'primary-runtime', 'dependencies', entry), '-verify_arch', 'arm64'],
       })),
       { command: 'hdiutil', args: ['detach', value.root] },
     ])
@@ -148,7 +148,7 @@ describe('macOS DMG smoke artifact verification', () => {
   })
 
   it('rejects a missing or falsified Intel source receipt rather than relabelling tool bytes as npm rc.2',()=>{
-    const value=fixture('x64'),primary=join(value.root,'WorkDSH.app','Contents','Resources','workdsh-runtime','primary-runtime')
+    const value=fixture('x64'),primary=join(value.root,'kaiwu.app','Contents','Resources','workdsh-runtime','primary-runtime')
     const harness=options({targetArch:'x64',makeMountPoint:()=>value.root},value.modeOverrides)
     writeFileSync(join(primary,OFFICIAL_PROVENANCE_FILE),JSON.stringify({schemaVersion:1,npmDshVersion:'0.2.1-rc.2',artifact:{version:'0.2.1-rc.2'}}))
     expectSmokeFailure(harness,'provenance mismatch')
@@ -165,7 +165,7 @@ describe('macOS DMG smoke artifact verification', () => {
     expect(harness.calls).toEqual([
       {
         command: 'hdiutil',
-        args: ['attach', '/release/dist/WorkDSH-2.0.1-arm64.dmg', '-mountpoint', value.root, '-nobrowse', '-readonly'],
+        args: ['attach', '/release/dist/kaiwu-2.0.1-arm64.dmg', '-mountpoint', value.root, '-nobrowse', '-readonly'],
       },
       { command: 'hdiutil', args: ['detach', value.root] },
     ])
@@ -202,7 +202,7 @@ describe('macOS DMG smoke artifact verification', () => {
 
   it('rejects a missing bundled Node binary', () => {
     const value = fixture()
-    rmSync(join(value.root, 'WorkDSH.app', 'Contents', 'Resources', 'workdsh-runtime', 'primary-runtime', 'dependencies', 'node', 'bin', 'node'))
+    rmSync(join(value.root, 'kaiwu.app', 'Contents', 'Resources', 'workdsh-runtime', 'primary-runtime', 'dependencies', 'node', 'bin', 'node'))
     const harness = options({ makeMountPoint: () => value.root }, value.modeOverrides)
 
     expectSmokeFailure(harness, 'missing bundled Node')

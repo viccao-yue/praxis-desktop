@@ -25,8 +25,8 @@ function fixture(version = '2.0.0'): {
   const dist = join(root, 'dist')
   const unpacked = join(dist, 'win-unpacked')
   mkdirSync(unpacked, { recursive: true })
-  const installer = join(dist, `WorkDSH-${version}-x64-Setup.exe`)
-  const application = join(unpacked, 'WorkDSH.exe')
+  const installer = join(dist, `kaiwu-${version}-x64-Setup.exe`)
+  const application = join(unpacked, 'kaiwu.exe')
   writeFileSync(installer, portableExecutable())
   writeFileSync(application, portableExecutable())
   const runtime = join(unpacked, 'resources', 'workdsh-runtime', 'primary-runtime')
@@ -56,7 +56,7 @@ describe('Windows installer artifact verification', () => {
     const value = fixture('1.9.0')
 
     expect(() => verifyWindowsInstaller({ desktopRoot: value.root, version: '2.0.0' }))
-      .toThrow('WorkDSH-2.0.0-x64-Setup.exe')
+      .toThrow('kaiwu-2.0.0-x64-Setup.exe')
   })
 
   it('rejects an artifact without a Windows PE header', () => {

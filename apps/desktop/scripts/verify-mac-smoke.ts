@@ -55,7 +55,7 @@ function defaultOptions(): MacSmokeVerificationOptions {
       ? join(packageRoot, 'dist', 'mac-smoke')
       : resolve(process.argv[2]),
     targetArch: process.argv[3] === 'x64' ? 'x64' : 'arm64',
-    productName: 'WorkDSH',
+    productName: 'kaiwu',
     listDmgs,
     makeMountPoint: () => mkdtempSync(join(tmpdir(), 'dsh-desktop-dmg-smoke-')),
     run,

@@ -332,6 +332,8 @@ export function resolveFinalPackagedRuntimeContexts(
           ? {
               executableName: result.configuration.linux?.executableName
                 ?? result.configuration.executableName
+                ?? result.configuration.productName
+                ?? DESKTOP_MANIFEST.productName
                 ?? DESKTOP_MANIFEST.name,
             }
           : {}),

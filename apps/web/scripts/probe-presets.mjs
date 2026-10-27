@@ -165,7 +165,7 @@ try {
     const initialSkillsSelect = page.waitForResponse(response => new URL(response.url()).pathname === '/api/agentPresets/select');
     await page.getByText('kaiwu Skills', { exact: true }).click();
     assert.ok((await initialSkillsSelect).ok(), 'initial blank-session preset switch succeeded');
-    await expect(page.getByRole('button', { name: /WorkDSH Skills/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /kaiwu Skills/ })).toBeVisible();
     await page.waitForTimeout(250);
     await composer.fill('/');
     await expect(page.getByText('cordis-plugin-development', { exact: true })).toBeVisible({ timeout: 10_000 });
@@ -173,11 +173,11 @@ try {
     await composer.fill('');
     await page.keyboard.press('Escape');
     await expect(page.getByText('cordis-plugin-development', { exact: true })).not.toBeVisible();
-    await page.getByRole('button', { name: /WorkDSH Skills/ }).click();
+    await page.getByRole('button', { name: /kaiwu Skills/ }).click();
     const selectMinimal = page.waitForResponse(response => new URL(response.url()).pathname === '/api/agentPresets/select');
     await page.getByText('kaiwu Minimal', { exact: true }).click();
     assert.ok((await selectMinimal).ok(), 'blank-session preset switch succeeded');
-    await expect(page.getByRole('button', { name: /WorkDSH Minimal/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /kaiwu Minimal/ })).toBeVisible();
     await page.waitForTimeout(250);
     const minimalList = page.waitForResponse(response => new URL(response.url()).pathname === '/api/skills/list');
     await composer.fill('/');
@@ -189,7 +189,7 @@ try {
     await expect(page.getByText('editing-cordis-compositions', { exact: true })).not.toBeVisible();
     await composer.fill('');
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: /WorkDSH Minimal/ }).click();
+    await page.getByRole('button', { name: /kaiwu Minimal/ }).click();
     const selectSkills = page.waitForResponse(response => new URL(response.url()).pathname === '/api/agentPresets/select');
     await page.getByText('kaiwu Skills', { exact: true }).click();
     assert.ok((await selectSkills).ok(), 'second blank-session preset switch succeeded');
@@ -249,7 +249,7 @@ try {
       ]);
       assert.ok(firstCatalog.result.value.skills.some(skill => skill.name === 'cordis-plugin-development'));
       assert.deepEqual(secondCatalog.result.value.skills, []);
-      await secondPage.getByRole('button', { name: /WorkDSH Minimal/ }).click();
+      await secondPage.getByRole('button', { name: /kaiwu Minimal/ }).click();
       const switchSecond = secondPage.waitForResponse(response => new URL(response.url()).pathname === '/api/agentPresets/select');
       await secondPage.getByText('kaiwu Skills', { exact: true }).click();
       assert.ok((await switchSecond).ok());
