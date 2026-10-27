@@ -13,7 +13,7 @@ it('accepts only an administrator backend origin and normalizes it', () => {
 
 it('shows a fixed administrator backend and no plugin installation step', () => {
   const entry = connectionEntryHtml('https://company.test', true)
-  expect(entry).toContain('<p>https://company.test</p>')
+  expect(entry).toContain('class="managed-portal">https://company.test</p>')
   expect(entry).not.toContain('name="portal"')
   expect(entry).toContain('企业登录')
   const login = enterpriseLoginHtml('https://company.test')

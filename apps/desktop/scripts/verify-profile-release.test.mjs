@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, delimiter, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DSH_VERSION } from './runtime-version.mjs'
-import { ENTERPRISE_PACKAGES, PACKAGE_DIRECTORIES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
+import { ENTERPRISE_PACKAGES, PACKAGE_DIRECTORIES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PREINSTALL_PERSONAL_PACKAGES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
 
 test('release bootstrap installs dependencies before loading package validators', () => {
   const directory = mkdtempSync(join(tmpdir(), 'kaiwu clean release '))
@@ -95,8 +95,11 @@ test('requires release package changes to be reviewed before Desktop bundles the
 function defaultProfile() {
   return {
     dependencies: Object.fromEntries(PRODUCT_PACKAGES.map(name => [name, 'file:../cache.tgz'])),
-    optionalDependencies: Object.fromEntries(RELEASE_PACKAGES.filter(name => !PRODUCT_PACKAGES.includes(name)).map(name => [name, 'file:../cache.tgz'])),
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES] } },
+    optionalDependencies: Object.fromEntries([
+      ...RELEASE_PACKAGES.filter(name => !PRODUCT_PACKAGES.includes(name)).map(name => [name, 'file:../cache.tgz']),
+      ...PREINSTALL_PERSONAL_PACKAGES.map(name => [name, 'file:../enterprise.tgz']),
+    ]),
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...PERSONAL_DEFAULT_EXTRA_BUNDLES] } },
   }
 }
 
@@ -105,7 +108,7 @@ test('Desktop ships the workbench platform with its default features and keeps b
   assert.deepEqual(ENTERPRISE_PACKAGES, ['workdsh-provider-identity-enterprise', 'workdsh-plugin-enterprise-collaboration', 'workdsh-enterprise-connection'])
   assert.equal(RELEASE_PACKAGES.length, 13)
   assert.doesNotThrow(() => verifyDefaultProfile(defaultProfile()))
-  for (const name of ['workdsh-plugin-office', 'workdsh-plugin-notifications', 'workdsh-plugin-quality-analysis', ...ENTERPRISE_PACKAGES]) {
+  for (const name of ['workdsh-plugin-office', 'workdsh-plugin-notifications', 'workdsh-plugin-quality-analysis', ...ENTERPRISE_PACKAGES.filter(n => !PREINSTALL_PERSONAL_PACKAGES.includes(n))]) {
     const profile = defaultProfile()
     profile.optionalDependencies[name] = 'file:../external.tgz'
     assert.throws(() => verifyDefaultProfile(profile), /owned dependency closure changed/)
@@ -133,12 +136,12 @@ test('enterprise delivery cannot activate or expose enterprise identity in the d
   selected.dsh.profile.bundles.push(ENTERPRISE_PACKAGES[0])
   assert.throws(() => verifyDefaultProfile(selected), /selected features changed/)
   const exposed = defaultProfile()
-  exposed.dependencies[ENTERPRISE_PACKAGES[0]] = exposed.optionalDependencies[ENTERPRISE_PACKAGES[0]]
-  delete exposed.optionalDependencies[ENTERPRISE_PACKAGES[0]]
-  assert.throws(() => verifyDefaultProfile(exposed), /direct features changed/)
+  exposed.optionalDependencies[ENTERPRISE_PACKAGES[0]] = 'file:../external-identity.tgz'
+  assert.throws(() => verifyDefaultProfile(exposed), /owned dependency closure changed/)
   assert.doesNotThrow(() => verifyDefaultComposition('- id: workdsh-identity-local\n  name: workdsh-provider-identity-local\n'))
+  assert.doesNotThrow(() => verifyDefaultComposition('- id: workdsh-enterprise-connection\n  name: workdsh-enterprise-connection\n'))
   assert.throws(() => verifyDefaultComposition('- insert:\n    - id: workdsh-identity-enterprise\n      name: workdsh-provider-identity-enterprise\n'), /active in the default personal composition/)
-  assert.throws(() => verifyDefaultComposition('- name: workdsh-provider-identity-enterprise/desktop\n'), /active in the default personal composition/)
+  assert.throws(() => verifyDefaultComposition('- name: workdsh-provider-identity-enterprise/desktop\n'), /Enterprise identity desktop entry/)
 })
 
 test('default Profile rejects a missing or duplicate feature and exposed infrastructure', () => {

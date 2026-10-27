@@ -17,6 +17,7 @@
     "build/app-icon.ico",
     "build/app-icon.png",
     "build/app-icon-mac.png",
+    "build/connection-ui/praxis-wordmark.png",
     "build/tray-icon.svg",
     "build/tray-icon*.png",
     "lib/workdsh-main.js",

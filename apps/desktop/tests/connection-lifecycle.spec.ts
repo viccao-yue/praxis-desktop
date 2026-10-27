@@ -80,7 +80,7 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
     else expect(startupApp.setActivationPolicy).not.toHaveBeenCalled()
     await vi.waitFor(() => expect(state.windows).toHaveLength(1))
     const entry = state.windows[0]
-    expect(decodeURIComponent(entry.url)).toContain('<p>https://company.test</p>')
+    expect(decodeURIComponent(entry.url)).toContain('class="managed-portal">https://company.test</p>')
     expect(decodeURIComponent(entry.url)).not.toContain('name="portal"')
     entry.webContents.emit('will-navigate', { preventDefault: vi.fn() }, 'workdsh://enterprise?portal=https%3A%2F%2Fevil.test')
     await vi.waitFor(() => expect(state.windows).toHaveLength(2))

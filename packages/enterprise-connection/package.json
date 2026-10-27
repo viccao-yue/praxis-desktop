@@ -12,6 +12,7 @@
     "index.mjs",
     "client.browser.js",
     "cordis.patch.yml",
+    "locale",
     "README.md"
   ],
   "dsh": {
