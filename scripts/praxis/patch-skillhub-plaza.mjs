@@ -129,7 +129,7 @@ function resolveClientBundle(root) {
   const pnpm = join(root, 'node_modules/.pnpm')
   if (existsSync(pnpm)) {
     for (const entry of readdirSync(pnpm)) {
-      if (!entry.startsWith('@cocofhu+skillhub@')) continue
+      if (!entry.includes('skillhub@') && !entry.includes('+skillhub@')) continue
       const path = join(pnpm, entry, 'node_modules/@cocofhu/skillhub/lib/client.js')
       if (existsSync(path)) return realpathSync(path)
     }
