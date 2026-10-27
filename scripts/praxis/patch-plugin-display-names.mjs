@@ -87,7 +87,7 @@ function resolveBundle(root) {
   const pnpm = join(root, 'node_modules/.pnpm')
   if (existsSync(pnpm)) {
     for (const entry of readdirSync(pnpm)) {
-      if (!entry.startsWith(PNPM_PREFIX)) continue
+      if (!entry.includes('dsh-client-ui-plugin-manager')) continue
       const path = join(pnpm, entry, 'node_modules', BUNDLE)
       if (existsSync(path)) return realpathSync(path)
     }
