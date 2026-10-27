@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { type ChildProcess } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { setTimeout as delay } from 'node:timers/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runOfficialCommand } from '../src/official-command.ts'
@@ -8,7 +9,28 @@ import * as owned from '../src/owned-process.ts'
 
 const homes: string[] = []
 const integrationTimeout = process.platform === 'win32' ? 20_000 : 5_000
-afterEach(() => { vi.restoreAllMocks(); for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true }) })
+
+/** Windows may keep a handle on the temp home until the spawned CLI fully exits. */
+async function removeHome(home: string): Promise<void> {
+  let last: unknown
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      rmSync(home, { recursive: true, force: true })
+      return
+    } catch (error) {
+      last = error
+      const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code) : ''
+      if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ENOTEMPTY') throw error
+      await delay(50 * (attempt + 1))
+    }
+  }
+  throw last
+}
+
+afterEach(async () => {
+  vi.restoreAllMocks()
+  for (const home of homes.splice(0)) await removeHome(home)
+})
 function fixture(source: string) {
   const home = mkdtempSync(join(tmpdir(), 'workdsh-cli-diagnostic-')); homes.push(home)
   const launcher = join(home, 'cli.mjs'); writeFileSync(launcher, source)
