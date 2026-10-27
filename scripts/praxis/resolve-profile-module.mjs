@@ -19,6 +19,8 @@ export function resolveProfilePackageFile(root, packageName, subpath) {
     join(profileRoot, 'node_modules/@deepseek-ai/dsh-deepseek-account/package.json'),
     join(profileRoot, 'node_modules/@deepseek-ai/dsh-client-ui-settings/package.json'),
     join(profileRoot, 'node_modules/@deepseek-ai/dsh-client-ui-plugin-manager/package.json'),
+    join(profileRoot, 'node_modules/@deepseek-ai/dsh-client-ui-schedule/package.json'),
+    join(profileRoot, 'node_modules/@cocofhu/skillhub/package.json'),
     join(profileRoot, 'node_modules/@deepseek-ai/dsh/package.json'),
   ]
   // Official client packages expose `./client` → lib/client.js; bare lib/ paths are blocked by exports.
