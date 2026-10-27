@@ -59,4 +59,6 @@ Build the shared features and their required support packages first. `pack-workd
 
 Official Desktop archives separately supply Node, pnpm, Python, Office assets and prebuilt command helpers. Each target records its actual archive version, URL, size and SHA-512. Intel tools explicitly use the official `0.2.1-rc.1` archive because an Intel `rc.2` archive is not published; the original runtime metadata is preserved. This does not downgrade the DSH npm packages or enable automatic fallback. Intel publication requires verification against its actual packaged x64 Resources.
 
+The public product identity is **kaiwu**; the UI display name is **开物Praxis**. Branding and experience overlays on top of upstream WorkDSH (packaged names, connection shell, Profile patches, upgrade checklist) are recorded in [`scripts/praxis/README.md`](../../scripts/praxis/README.md). After merging a newer upstream release, restore any overwritten overlays from that checklist instead of hunting scattered diffs.
+
 The carrier source and packaging scripts live here; shared kaiwu feature sources live under the repository's `packages/`. Official DSH packages are consumed without a source checkout. Enterprise administration and model forwarding belong to the separate kaiwu Admin repository.
