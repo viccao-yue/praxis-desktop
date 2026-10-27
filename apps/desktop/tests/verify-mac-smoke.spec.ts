@@ -27,7 +27,7 @@ function fixture(arch:'arm64'|'x64'='arm64'): AppFixture {
   mkdirSync(macos, { recursive: true })
   mkdirSync(resources, { recursive: true })
   const infoPlist = join(contents, 'Info.plist')
-  const executable = join(macos, 'kaiwu')
+  const executable = join(macos, 'WorkDSH')
   const appAsar = join(resources, 'app.asar')
   const modeOverrides = new Map<string, number>()
   writeFileSync(infoPlist, '<?xml version="1.0" encoding="UTF-8"?>')

@@ -47,7 +47,7 @@ describe('final Electron fuse verification', () => {
   it('maps only requested platform and architecture keys to complete runtime contexts', () => {
     const expected = [
       join('/build', 'linux-unpacked', 'dsh-plugin-desktop'),
-      join('/build', 'mac-universal', 'WorkDSH.app', 'Contents', 'MacOS', 'kaiwu'),
+      join('/build', 'mac-universal', 'WorkDSH.app', 'Contents', 'MacOS', 'WorkDSH'),
       join('/build', 'win-unpacked', 'WorkDSH.exe'),
       join('/build', 'win-arm64-unpacked', 'WorkDSH.exe'),
     ].sort()
@@ -216,7 +216,7 @@ describe('final Electron fuse verification', () => {
       'WorkDSH.app',
       'Contents',
       'MacOS',
-      'kaiwu',
+      'WorkDSH',
     )
     const exists = vi.fn((filename: string) => filename === universalExecutable)
 
@@ -229,8 +229,8 @@ describe('final Electron fuse verification', () => {
 
   it('checks every requested final executable after all artifact builds', async () => {
     const executables = [
-      join('/build', 'mac-arm64', 'WorkDSH.app', 'Contents', 'MacOS', 'kaiwu'),
-      join('/build', 'mac', 'WorkDSH.app', 'Contents', 'MacOS', 'kaiwu'),
+      join('/build', 'mac-arm64', 'WorkDSH.app', 'Contents', 'MacOS', 'WorkDSH'),
+      join('/build', 'mac', 'WorkDSH.app', 'Contents', 'MacOS', 'WorkDSH'),
     ]
     const events: string[] = []
     const read = vi.fn<ElectronFuseReader>(async (executable) => {
