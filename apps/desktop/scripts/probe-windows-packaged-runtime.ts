@@ -28,7 +28,7 @@ export function probeInstalledWindowsRuntime(
   platform: NodeJS.Platform = process.platform,
 ): InstalledWindowsRuntimeProbe {
   const root = resolve(installRoot)
-  const executable = join(root, 'kaiwu.exe')
+  const executable = join(root, '开物Praxis.exe')
   try {
     if (platform !== 'win32') {
       throw new Error('installed Windows runtime probe requires a native Windows host')
@@ -39,8 +39,8 @@ export function probeInstalledWindowsRuntime(
       electronPlatformName: 'win32',
       arch: 1,
       packager: {
-        executableName: 'kaiwu',
-        appInfo: { productFilename: 'kaiwu' },
+        executableName: '开物Praxis',
+        appInfo: { productFilename: '开物Praxis' },
       },
     })
     return { installRoot: root, executable, success: true, error: null }

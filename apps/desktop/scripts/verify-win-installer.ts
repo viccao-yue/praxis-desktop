@@ -93,7 +93,7 @@ export function verifyWindowsInstaller(
     distDir,
     `kaiwu-${options.version}-x64-Setup.exe`,
   )
-  const applicationPath = join(distDir, 'win-unpacked', 'kaiwu.exe')
+  const applicationPath = join(distDir, 'win-unpacked', '开物Praxis.exe')
 
   assertPortableExecutable(installerPath, 'Windows NSIS installer')
   assertPortableExecutable(applicationPath, 'unpacked Windows application')

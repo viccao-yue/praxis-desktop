@@ -67,7 +67,7 @@
   "build": {
     "appId": "io.kaiwu.desktop",
     "productName": "开物Praxis",
-    "executableName": "kaiwu",
+    "executableName": "开物Praxis",
     "asar": {
       "smartUnpack": true
     },
@@ -103,7 +103,7 @@
       "!node_modules/**"
     ],
     "mac": {
-      "artifactName": "kaiwu-${version}-${arch}.${ext}",
+      "artifactName": "开物Praxis-${version}-${arch}.${ext}",
       "asarUnpack": [
         "build/app-icon-mac.png",
         "build/tray-iconTemplate.png",

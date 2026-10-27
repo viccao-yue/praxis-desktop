@@ -26,7 +26,7 @@ function fixture(version = '2.0.0'): {
   const unpacked = join(dist, 'win-unpacked')
   mkdirSync(unpacked, { recursive: true })
   const installer = join(dist, `kaiwu-${version}-x64-Setup.exe`)
-  const application = join(unpacked, 'kaiwu.exe')
+  const application = join(unpacked, '开物Praxis.exe')
   writeFileSync(installer, portableExecutable())
   writeFileSync(application, portableExecutable())
   const runtime = join(unpacked, 'resources', 'workdsh-runtime', 'primary-runtime')

@@ -22,7 +22,7 @@ function fixture(version = '2.0.0'): { readonly root: string; readonly portable:
   mkdirSync(dist, { recursive: true })
   const portable = join(dist, `kaiwu-${version}-x64-Portable.zip`)
   const archive = new AdmZip()
-  archive.addFile('kaiwu.exe', portableExecutable())
+  archive.addFile('开物Praxis.exe', portableExecutable())
   archive.addFile('resources/app.asar', Buffer.from('asar'))
   archive.writeZip(portable)
   return { root, portable }
@@ -51,7 +51,7 @@ describe('Windows portable artifact verification', () => {
     const invalid = portableExecutable()
     invalid.write('NO', 0, 'ascii')
     const archive = new AdmZip()
-    archive.addFile('kaiwu.exe', invalid)
+    archive.addFile('开物Praxis.exe', invalid)
     archive.addFile('resources/app.asar', Buffer.from('asar'))
     archive.writeZip(value.portable)
 

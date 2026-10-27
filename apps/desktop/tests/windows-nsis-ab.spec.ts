@@ -427,7 +427,7 @@ describe('Windows NSIS A/B packaging', () => {
     mkdirSync(join(resources, 'app.asar.unpacked'), { recursive: true })
     writeFileSync(join(source, 'package.json'), '{"name":"dsh-plugin-desktop"}\n')
     writeFileSync(join(source, 'lib', 'workdsh-main.js'), 'export {}\n')
-    writeFileSync(join(installRoot, 'kaiwu.exe'), pe())
+    writeFileSync(join(installRoot, '开物Praxis.exe'), pe())
     writeFileSync(join(resources, 'app.asar.unpacked', 'native.node'), 'native')
     // The library-level createPackage() promise resolves when it calls
     // WriteStream.end(), not when the file's finish event fires. A short-lived
@@ -485,7 +485,7 @@ describe('Windows NSIS A/B packaging', () => {
     roots.push(root)
     const resources = join(root, 'resources')
     mkdirSync(resources, { recursive: true })
-    writeFileSync(join(root, 'kaiwu.exe'), pe())
+    writeFileSync(join(root, '开物Praxis.exe'), pe())
     writeFileSync(join(resources, 'app.asar'), 'not an asar')
 
     const inspection = inspectInstalledWindowsApp(root)
@@ -498,7 +498,7 @@ describe('Windows NSIS A/B packaging', () => {
   it('runs the shared packaged-runtime smoke with an Electron Builder-shaped context', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-installed-runtime-'))
     roots.push(root)
-    writeFileSync(join(root, 'kaiwu.exe'), pe())
+    writeFileSync(join(root, '开物Praxis.exe'), pe())
     const contexts: Parameters<PackagedElectronSmoke>[0][] = []
 
     const result = probeInstalledWindowsRuntime(root, context => contexts.push(context), 'win32')
@@ -510,8 +510,8 @@ describe('Windows NSIS A/B packaging', () => {
       electronPlatformName: 'win32',
       arch: 1,
       packager: {
-        executableName: 'kaiwu',
-        appInfo: { productFilename: 'kaiwu' },
+        executableName: '开物Praxis',
+        appInfo: { productFilename: '开物Praxis' },
       },
     })
     expect(contexts[0]).not.toHaveProperty('executableName')
