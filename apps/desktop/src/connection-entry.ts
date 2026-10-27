@@ -64,7 +64,7 @@ function documentShell(title: string, csp: string, stage: string): string {
 </body></html>`
 }
 
-const entryCsp = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action workdsh:; base-uri 'none'"
+const entryCsp = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action praxis:; base-uri 'none'"
 const loginCsp = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'"
 const loadingCsp = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'"
 
@@ -74,7 +74,7 @@ export function connectionEntryHtml(portal: string, managed: boolean = false, en
     ? `<div class="field" id="server-field"><label>企业后台</label><p class="managed-portal">${escaped}</p></div>`
     : `<div class="field" id="server-field"><label for="portal">企业后台地址</label><div class="control"><input class="mono" id="portal" name="portal" type="url" required placeholder="https://企业地址" value="${escaped}" autocomplete="url" spellcheck="false"></div></div>`
   const enterpriseAction = enterpriseAvailable
-    ? `<form class="enterprise-continue" action="workdsh://enterprise" method="get">${portalField}<button class="submit" type="submit">下一步</button></form>`
+    ? `<form class="enterprise-continue" action="praxis://enterprise" method="get">${portalField}<button class="submit" type="submit">下一步</button></form>`
     : `<div class="enterprise-continue">${portalField}<button class="submit" type="button" disabled>请先安装企业账号插件</button><p class="plugin-hint">进入个人空间，在插件管理中安装企业插件，再从工作区菜单切换到企业登录。</p></div>`
   const enterpriseOption = enterpriseAvailable
     ? `<label class="option" data-mode="enterprise"><input type="radio" name="mode" value="enterprise"><span class="txt"><strong>企业登录</strong><small>连接企业后台，使用企业空间与统一权限</small></span><span class="radio" aria-hidden="true"></span></label>`
@@ -97,7 +97,7 @@ export function connectionEntryHtml(portal: string, managed: boolean = false, en
           </label>
           ${enterpriseOption}
         </div>
-        <a class="submit personal-continue" href="workdsh://personal">继 续</a>
+        <a class="submit personal-continue" href="praxis://personal">继 续</a>
         ${enterpriseAction}
       </div>`
 
@@ -116,7 +116,7 @@ export function enterpriseLoginHtml(backend: string): string {
         <div class="server">
           <span class="lamp" aria-hidden="true"></span>
           <code title="${escaped}">${host}</code>
-          <a class="switch" href="workdsh://entry">切换</a>
+          <a class="switch" href="praxis://entry">切换</a>
         </div>
         <form id="enterprise-login" novalidate>
           <div class="field" id="f-account">
@@ -147,7 +147,7 @@ export function enterpriseLoginHtml(backend: string): string {
           </div>
           <button class="submit" type="submit">登录并在本机运行</button>
         </form>
-        <a class="back" href="workdsh://entry">返回使用方式</a>
+        <a class="back" href="praxis://entry">返回使用方式</a>
       </div>`
   return documentShell('开物Praxis', loginCsp, stage)
 }

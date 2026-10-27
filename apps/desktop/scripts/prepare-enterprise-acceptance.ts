@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process'
 const [app, home, identity, collaboration] = process.argv.slice(2)
 if (!app || !home || !identity || !collaboration) throw new Error('Supply app, isolated home, identity archive and collaboration archive')
 const resources = join(app, 'Contents/Resources/workdsh-runtime')
-const { profile } = materializeRuntimeProfile(join(resources, 'profiles/workdsh'), home)
+const { profile } = materializeRuntimeProfile(join(resources, 'profiles/kaiwu'), home)
 const file = join(profile, 'package.json')
 const pkg = JSON.parse(readFileSync(file, 'utf8'))
 pkg.dependencies ??= {}

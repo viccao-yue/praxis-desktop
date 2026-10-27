@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { DSH_VERSION, OFFICIAL_PNPM_VERSION } from './runtime-version.mjs'
-import { CATALOG_PACKAGES, ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PREINSTALL_PERSONAL_PACKAGES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
+import { CATALOG_PACKAGES, ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
 import { composeProfilePatches, verifyDefaultComposition, verifyDefaultProfile, verifyInstalledDshVersions, verifyOfficialWebPackages, verifyPackageDshReferences, verifyProfileRelease, verifyReleaseArchives } from './verify-profile-release.mjs'
 import { runtimeArchitecture, runtimeArchitectureYaml } from './runtime-architecture.mjs'
 import { patchAccountMenuAt } from '../../../scripts/praxis/patch-account-menu.mjs'
@@ -17,7 +17,9 @@ import { patchPluginDisplayNamesAt } from '../../../scripts/praxis/patch-plugin-
 const architecture = runtimeArchitecture()
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = join(desktopRoot, 'build/workdsh-runtime')
-const profile = join(output, 'profiles/workdsh')
+const profile = join(output, 'profiles/kaiwu')
+const legacyProfile = join(output, 'profiles/workdsh')
+if (existsSync(legacyProfile) && !existsSync(profile)) renameSync(legacyProfile, profile)
 const cache = join(output, 'package-cache')
 const release = resolve(process.env.WORKDSH_RELEASE_DIRECTORY ?? join(desktopRoot, 'build/workdsh-profile-release'))
 const manifestFile = join(release, 'release-manifest.json')
@@ -46,14 +48,9 @@ function verifyInstalled() {
     const pkg = readJson(join(profile, 'node_modules', item.name, 'package.json'))
     if (pkg.version !== item.version) throw new Error('Installed owned package version mismatch: ' + item.name)
     verifyPackageDshReferences(pkg, DSH_VERSION)
-    if (ENTERPRISE_PACKAGES.includes(item.name) && item.name !== 'workdsh-enterprise-connection' && (!pkg.exports?.['./desktop'] || pkg.peerDependencies?.['@deepseek-ai/dsh'] !== DSH_VERSION)) {
+    if (ENTERPRISE_PACKAGES.includes(item.name) && (!pkg.exports?.['./desktop'] || pkg.peerDependencies?.['@deepseek-ai/dsh'] !== DSH_VERSION)) {
       throw new Error('Shipped enterprise package is missing the compatible Desktop entry: ' + item.name)
     }
-  }
-  for (const name of PREINSTALL_PERSONAL_PACKAGES) {
-    const pkg = readJson(join(profile, 'node_modules', name, 'package.json'))
-    verifyPackageDshReferences(pkg, DSH_VERSION)
-    if (!(base.optionalDependencies?.[name] || base.dependencies?.[name])) throw new Error('Missing personal preinstall dependency: ' + name)
   }
   // Official resolution traverses dependencies + peers, while its product
   // manager lists only dependencies. Derive a read-only installation anchor
@@ -122,17 +119,6 @@ if (!prepared) {
       const target = PRODUCT_PACKAGES.includes(item.name) ? dependencies : optionalDependencies
       target[item.name] = 'file:../../package-cache/' + item.filename
     }
-    const enterpriseDelivery = join(release, 'enterprise-plugins')
-    if (existsSync(enterpriseDelivery)) {
-      for (const name of PREINSTALL_PERSONAL_PACKAGES) {
-        const match = readdirSync(enterpriseDelivery).find(entry => entry.startsWith(name + '-') && entry.endsWith('.tgz'))
-        if (!match) throw new Error('Missing personal preinstall archive: ' + name)
-        cpSync(join(enterpriseDelivery, match), join(cache, match))
-        optionalDependencies[name] = 'file:../../package-cache/' + match
-      }
-    } else if (PREINSTALL_PERSONAL_PACKAGES.length) {
-      throw new Error('Enterprise plugin delivery is required for personal preinstall: ' + PREINSTALL_PERSONAL_PACKAGES.join(', '))
-    }
     const pkg = { name: 'workdsh-desktop-profile', private: true, type: 'module', packageManager: `pnpm@${OFFICIAL_PNPM_VERSION}`, dependencies, optionalDependencies,
       dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...Object.keys(CATALOG_PACKAGES), ...PERSONAL_DEFAULT_EXTRA_BUNDLES] } } }
     writeFileSync(join(profile, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
@@ -171,4 +157,4 @@ if (!prepared) {
   }
 }
 cpSync(join(profile, 'package.json'), join(output, 'profile-package.json'))
-console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) at ${output}`)
+console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) and no preinstalled enterprise plugins at ${output}`)

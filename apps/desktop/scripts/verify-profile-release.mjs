@@ -1,5 +1,5 @@
 import { load as loadYaml, dump as dumpYaml, Type as YamlType, DEFAULT_SCHEMA } from 'js-yaml'
-import { ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PREINSTALL_PERSONAL_PACKAGES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
+import { ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
 import { createHash } from 'node:crypto'
 import { existsSync, globSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
@@ -56,12 +56,10 @@ export function verifyDefaultProfile(manifest) {
   const selected = (manifest.dsh?.profile?.bundles ?? []).filter(name => name.startsWith('workdsh-')).sort()
   const direct = Object.keys(manifest.dependencies ?? {}).filter(name => name.startsWith('workdsh-')).sort()
   const installed = [...direct, ...Object.keys(manifest.optionalDependencies ?? {}).filter(name => name.startsWith('workdsh-'))].sort()
-  const expectedSelected = [...PRODUCT_PACKAGES, ...PREINSTALL_PERSONAL_PACKAGES].sort()
-  const expectedInstalled = [...RELEASE_PACKAGES, ...PREINSTALL_PERSONAL_PACKAGES].sort()
   for (const [kind, actual, expected] of [
-    ['selected features', selected, expectedSelected],
+    ['selected features', selected, PRODUCT_PACKAGES],
     ['direct features', direct, PRODUCT_PACKAGES],
-    ['owned dependency closure', installed, expectedInstalled.sort()],
+    ['owned dependency closure', installed, [...RELEASE_PACKAGES].sort()],
   ]) {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       throw new Error(`Desktop ${kind} changed: expected ${expected.join(', ')}, found ${actual.join(', ')}`)
@@ -76,11 +74,7 @@ export function verifyDefaultProfile(manifest) {
 
 /** Shipping enterprise code must not silently activate it in the personal composition. */
 export function verifyDefaultComposition(config) {
-  if (config.includes('workdsh-provider-identity-enterprise/desktop')) {
-    throw new Error('Enterprise identity desktop entry is active in the default personal composition')
-  }
   for (const name of ENTERPRISE_PACKAGES) {
-    if (name === 'workdsh-enterprise-connection') continue
     if (config.includes(name)) throw new Error('Enterprise package is active in the default personal composition: ' + name)
   }
 }

@@ -94,7 +94,7 @@ try {
  await returnedPersonal.getByRole('button',{name:'卸载',exact:true}).click();
  await returnedPersonal.getByText('workdsh-enterprise-connection',{exact:false}).first().waitFor({state:'hidden',timeout:60000});
  report.checks.uninstalledThroughOfficialUi=true;
- const personalManifest=JSON.parse(readFileSync(join(env.WORKDSH_DESKTOP_USER_DATA,'dsh-home/profiles/workdsh/package.json'),'utf8'));
+ const personalManifest=JSON.parse(readFileSync(join(env.WORKDSH_DESKTOP_USER_DATA,'dsh-home/profiles/kaiwu/package.json'),'utf8'));
  report.checks.enterpriseDependencyRemoved=!personalManifest.dependencies?.['workdsh-enterprise-connection'];
  await returnedPersonal.getByRole('button',{name:'添加插件',exact:true}).click();
  await returnedPersonal.getByPlaceholder('例如 dsh-plugin-whale-pet').fill(process.env.WORKDSH_TEST_ENTERPRISE_ARCHIVE);

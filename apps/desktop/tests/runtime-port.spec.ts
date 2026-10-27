@@ -57,9 +57,9 @@ it('gives independent Homes different available ports while both official origin
 })
 
 it('leaves explicit profile/Home/launcher webserver configuration and expressions untouched', async () => {
-  for (const filename of ['profiles/workdsh/cordis.yml', 'profiles/workdsh/cordis.patch.yml', 'cordis.yml', 'cordis.patch.yml', 'explicit.patch.yml']) {
+  for (const filename of ['profiles/kaiwu/cordis.yml', 'profiles/kaiwu/cordis.patch.yml', 'cordis.yml', 'cordis.patch.yml', 'explicit.patch.yml']) {
     const directory = await home(), file = join(directory, filename)
-    await mkdir(join(directory, 'profiles/workdsh'), { recursive: true })
+    await mkdir(join(directory, 'profiles/kaiwu'), { recursive: true })
     const user = '# explicit user config\n- id: webserver\n  config:\n    host: 127.0.0.1\n    port: !!js "throw new Error(\'must-not-evaluate\')"\n'
     await writeFile(file, user)
     expect(await prepareRuntimePort(directory, [file], { preferredPort: 0 })).toEqual({ managed: false })

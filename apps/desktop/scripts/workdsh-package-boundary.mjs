@@ -16,15 +16,9 @@ export const ENTERPRISE_PACKAGES = Object.freeze([
   'workdsh-enterprise-connection',
 ])
 
-/** Personal Profile bundles beyond PRODUCT_PACKAGES + catalog integrations. */
+/** Non-workdsh bundles activated for the default personal Profile. */
 export const PERSONAL_DEFAULT_EXTRA_BUNDLES = Object.freeze([
   '@deepseek-ai/dsh-experimental-auto-review',
-  'workdsh-enterprise-connection',
-])
-
-/** Optional workdsh packages preinstalled for personal (not in RELEASE_PACKAGES). */
-export const PREINSTALL_PERSONAL_PACKAGES = Object.freeze([
-  'workdsh-enterprise-connection',
 ])
 
 // Keep the already shipped community catalog integrations on the same Profile.

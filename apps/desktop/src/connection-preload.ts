@@ -63,8 +63,10 @@ window.addEventListener('DOMContentLoaded', () => {
     event.preventDefault()
     const accountInput = document.querySelector<HTMLInputElement>('#account')!
     const nextPassword = document.querySelector<HTMLInputElement>('#password')!
-    if (!accountInput.value.trim()) {
+    if (!accountInput.value.trim() || !nextPassword.value) {
       setStatus('请输入账号和密码', 'error')
+      accountField?.classList.toggle('is-invalid', !accountInput.value.trim())
+      passwordField?.classList.toggle('is-invalid', !nextPassword.value)
       return
     }
     const value = { account: accountInput.value, password: nextPassword.value }

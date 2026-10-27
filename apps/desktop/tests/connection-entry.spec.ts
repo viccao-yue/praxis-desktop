@@ -3,13 +3,13 @@ import { connectionEntryHtml, connectionLoadingHtml, enterpriseLoginHtml } from 
 
 it('renders separate entry choices without permitting configured address HTML injection', () => {
   const html = connectionEntryHtml('\"><script>attack()</script>')
-  expect(html).toContain('workdsh://personal')
-  expect(html).toContain('workdsh://enterprise')
+  expect(html).toContain('praxis://personal')
+  expect(html).toContain('praxis://enterprise')
   expect(html).toContain('员工端')
   expect(html).toContain('开物成务')
   expect(html).toContain("default-src 'none'")
   expect(html).toContain("img-src data:")
-  expect(html).toContain("form-action workdsh:")
+  expect(html).toContain("form-action praxis:")
   expect(html).not.toContain('<script>')
   expect(html).not.toContain('<script>attack()')
 })
@@ -36,8 +36,8 @@ it('requires installing the enterprise account plugin before showing an active l
   const html = connectionEntryHtml('https://company.example', false, false)
   expect(html).toContain('请先安装企业账号插件')
   expect(html).toContain('type="button" disabled')
-  expect(html).toContain('workdsh://personal')
-  expect(html).not.toContain('action="workdsh://enterprise"')
+  expect(html).toContain('praxis://personal')
+  expect(html).not.toContain('action="praxis://enterprise"')
 })
 
 it('styles the enterprise login surface with the shared employee brand shell', () => {
@@ -45,7 +45,7 @@ it('styles the enterprise login surface with the shared employee brand shell', (
   expect(html).toContain('id="enterprise-login"')
   expect(html).toContain('id="status"')
   expect(html).toContain('company.test:8443')
-  expect(html).toContain('workdsh://entry')
+  expect(html).toContain('praxis://entry')
   expect(html).toContain("form-action 'none'")
   expect(html).not.toContain('<script>')
 })

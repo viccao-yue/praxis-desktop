@@ -44,7 +44,7 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
   writeFileSync(join(root, 'resources/workdsh-config.json'), JSON.stringify({ enterprise: { backendUrl: 'https://company.test' } }))
   const savedBackend = JSON.stringify({ backend: 'https://other.test' })
   writeFileSync(join(state.userData, 'enterprise-backend.json'), savedBackend)
-  const source = join(root, 'bundle/profiles/workdsh'), home = join(root, 'personal')
+  const source = join(root, 'bundle/profiles/kaiwu'), home = join(root, 'personal')
   for (const path of ['@deepseek-ai/dsh/lib', '@deepseek-ai/dsh-app-boot/lib', 'pnpm/bin']) mkdirSync(join(source, 'node_modules', path), { recursive: true })
   writeFileSync(join(source, 'node_modules/@deepseek-ai/dsh/package.json'), JSON.stringify({ version: '0.2.0-rc.2' }))
   writeFileSync(join(source, 'node_modules/@deepseek-ai/dsh/lib/bin.js'), '')
@@ -82,7 +82,7 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
     const entry = state.windows[0]
     expect(decodeURIComponent(entry.url)).toContain('class="managed-portal">https://company.test</p>')
     expect(decodeURIComponent(entry.url)).not.toContain('name="portal"')
-    entry.webContents.emit('will-navigate', { preventDefault: vi.fn() }, 'workdsh://enterprise?portal=https%3A%2F%2Fevil.test')
+    entry.webContents.emit('will-navigate', { preventDefault: vi.fn() }, 'praxis://enterprise?portal=https%3A%2F%2Fevil.test')
     await vi.waitFor(() => expect(state.windows).toHaveLength(2))
     const loginPage = state.windows[1]
     expect(loginPage.url).toMatch(/^data:text\/html/)
@@ -94,7 +94,7 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
     expect(readFileSync(join(state.userData, 'enterprise-backend.json'), 'utf8')).toBe(savedBackend)
     expect(spawn).toHaveBeenCalledOnce()
     expect(state.handlers['kaiwu:enterprise-install']).toBeUndefined()
-    expect(existsSync(join(enterprise.home, 'profiles/workdsh/node_modules/workdsh-provider-identity-enterprise'))).toBe(false)
+    expect(existsSync(join(enterprise.home, 'profiles/kaiwu/node_modules/workdsh-provider-identity-enterprise'))).toBe(false)
     const launch = vi.mocked(spawn).mock.calls[0]!
     expect(launch[2]?.env?.DSH_HOME).toBe(enterprise.home)
     expect(launch[2]?.env?.DSH_AGENTS_HOME).toBe(join(enterprise.root, 'agents'))
@@ -129,7 +129,7 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
     expect(dialog.showErrorBox).toHaveBeenCalledWith('本机已退出', expect.stringContaining('远端撤销尚未确认'))
     expect(readFileSync(join(home, 'retained'), 'utf8')).toBe('personal data')
     const personalEntry = state.windows[3]
-    personalEntry.webContents.emit('will-navigate', { preventDefault() {} }, 'workdsh://personal')
+    personalEntry.webContents.emit('will-navigate', { preventDefault() {} }, 'praxis://personal')
     await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(2))
     expect(vi.mocked(spawn).mock.calls[1]?.[2]?.env?.DSH_HOME).toBe(home)
     app.emit('activate')
@@ -143,7 +143,7 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
     // A failed patch write happens after authority startup; it must leave no credential file/bridge.
     rmSync(join(enterprise.home, '.enterprise-desktop.patch.yml'))
     mkdirSync(join(enterprise.home, '.enterprise-desktop.patch.yml'))
-    state.windows[5].webContents.emit('will-navigate', { preventDefault() {} }, 'workdsh://enterprise?portal=https%3A%2F%2Fcompany.test')
+    state.windows[5].webContents.emit('will-navigate', { preventDefault() {} }, 'praxis://enterprise?portal=https%3A%2F%2Fcompany.test')
     await vi.waitFor(() => expect(state.windows).toHaveLength(7))
     expect(await signIn({ sender: state.windows[6].webContents }, { account: 'a', password: 'secret' })).toHaveProperty('error')
     expect(state.closed).toHaveBeenCalledTimes(2); expect(state.logout).toHaveBeenCalledTimes(2)
@@ -152,7 +152,7 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
     expect(state.windows[7].url).toMatch(/^data:text\/html/)
     // A bad local device record fails before enterprise owns the login; revoke that newly admitted session too.
     writeFileSync(join(enterprise.root, 'device.json'), JSON.stringify({ deviceId: false }))
-    state.windows[7].webContents.emit('will-navigate', { preventDefault() {} }, 'workdsh://enterprise?portal=https%3A%2F%2Fcompany.test')
+    state.windows[7].webContents.emit('will-navigate', { preventDefault() {} }, 'praxis://enterprise?portal=https%3A%2F%2Fcompany.test')
     await vi.waitFor(() => expect(state.windows).toHaveLength(9))
     expect(await signIn({ sender: state.windows[8].webContents }, { account: 'a', password: 'secret' })).toHaveProperty('error')
     expect(state.logout).toHaveBeenCalledTimes(3); expect(state.closed).toHaveBeenCalledTimes(2)
