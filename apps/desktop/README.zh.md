@@ -59,4 +59,6 @@ corepack yarn check:desktop-dsh-alignment
 
 官方 Desktop 归档单独提供 Node、pnpm、Python、Office 资源和预编译命令工具，每个目标记录实际归档版本、URL、大小和 SHA-512。上游尚未发布 Intel `rc.2` 归档，因此 Intel 工具明确使用官方 `0.2.1-rc.1` 归档并保留原始运行时元数据。这不会降级 DSH npm 包，也不启用自动回退；Intel 发行仍须通过实际安装包 x64 Resources 的验证。
 
+对外产品身份为 **kaiwu**，界面显示 **开物Praxis**。相对上游 WorkDSH 的品牌与体验修改（打包名、连接页、Profile 补丁、升级核对清单）集中记录在 [`scripts/praxis/README.md`](../../scripts/praxis/README.md)；合入上游新版本后按该清单恢复被冲掉的覆盖，而不是只搜零散 diff。
+
 外壳源码与打包脚本位于本目录，共享 kaiwu 功能源码位于仓库 `packages/`。官方 DSH 通过已发布包接入，不检出其源码。企业管理与模型转发由独立的 kaiwu Admin 仓库负责。
