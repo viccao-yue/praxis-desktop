@@ -106,7 +106,9 @@ jobs:
     name: Web source checks (no installer)
     needs: changes
     if: needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-latest
+    # Pin 24.04: GitHub rolled ubuntu-latest to 26.04, and Playwright 1.58.2
+    # cannot install Chromium there. Unpin after upgrading @playwright/test to >=1.61.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
         with:
