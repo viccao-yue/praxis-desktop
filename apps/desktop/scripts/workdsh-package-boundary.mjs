@@ -33,6 +33,13 @@ export const CATALOG_PACKAGES = Object.freeze({
   'dsh-living-memory': '0.2.10',
   // Praxis: image transcription for text-only models (设置 → 视觉增强).
   'dsh-vision-plugin': '1.4.0',
+  // Praxis default community plugins (personal base installer).
+  'dsh-mineru': '0.1.15',
+  // https://github.com/liustack/modsearch — free web search / fetch for DSH.
+  '@liustack/modsearch': '5.10.10',
+  'dsh-video-lens': '0.3.2',
+  // Windows-oriented video studio; still ship so plugin inventory is complete.
+  'dsh-video-studio': '0.4.3',
 })
 
 export const RELEASE_PACKAGES = Object.freeze([

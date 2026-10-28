@@ -126,6 +126,7 @@ export class SkillCatalogStore {
       'workdsh-pdf-design': 'PDF 文档设计',
       'kubercon-deploy': '常青云容器云装机',
       'kubercon-kubectl': '常青云容器云运维',
+      'libtv-skill': 'LibTV 生图生视频',
     };
     for (const [name, title] of Object.entries(builtinTitles)) {
       if (installed.has(name) && (!rows.get(name)?.title || rows.get(name)?.title === name)) rows.set(name, { ...rows.get(name), title });

@@ -8,6 +8,8 @@ import * as yaml from 'js-yaml'
 const HOST = '127.0.0.1'
 const STATE_FILE = '.workdsh-loopback.json'
 const PATCH_FILE = '.workdsh-loopback.patch.yml'
+/** Official DSH Desktop historically binds here; kaiwu must not share it. */
+const LEGACY_OFFICIAL_PORT = 3080
 // The carrier's lightweight declaration exposes load/dump only; retain a
 // bundled module import for the schema API instead of an external require.
 const codec = yaml as unknown as {
@@ -72,12 +74,19 @@ export async function prepareRuntimePort(home: string, userPatchFiles: string[],
   await mkdir(home, { recursive: true, mode: 0o700 })
   const state = join(home, STATE_FILE)
   let port = await savedPort(state)
-  if (port !== undefined) {
+  // Early kaiwu Homes reused official DSH's 3080 and collide when both apps run.
+  // One-time migrate those records onto the kaiwu preferred port (default 15200).
+  if (port === LEGACY_OFFICIAL_PORT && preferredPort !== LEGACY_OFFICIAL_PORT) {
+    const migrated = await availablePort(preferredPort) ?? await availablePort(0)
+    if (migrated === undefined) throw new Error('无法为工作区分配本机端口，请稍后重试。')
+    port = migrated
+    await writeFile(state, JSON.stringify({ version: 1, host: HOST, port }) + '\n', { mode: 0o600 })
+  } else if (port !== undefined) {
     if (await availablePort(port) === undefined) throw new Error(`此工作区原有地址 ${HOST}:${port} 正被占用。请先关闭占用该地址的应用后重试；为保留页面数据，本次未切换地址，也未停止其他进程。`)
   } else {
     port = await availablePort(preferredPort)
-    // Before Home-owned records existed, this Desktop used 3080 then 15200. Preserve
-    // that origin for an existing Profile instead of hiding its localStorage.
+    // Existing Homes without a Home-owned record keep the preferred origin when free,
+    // so page localStorage for that loopback address remains reachable.
     if (port === undefined && options.existingHome) throw new Error(`已有工作区原地址 ${HOST}:${preferredPort} 正被占用。为保留页面数据，本次未切换地址，也未停止其他进程；请关闭占用该地址的应用后重试。`)
     port ??= await availablePort(0)
     if (port === undefined) throw new Error('无法为工作区分配本机端口，请稍后重试。')

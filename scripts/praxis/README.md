@@ -83,7 +83,9 @@
 - 企业连接 `workdsh-enterprise-connection` 可作为 optionalDependency 打进安装包，便于「插件」里默认可见；**不要**把它写进个人 `dsh.profile.bundles`，也不要默认启用身份/协作。
 - 企业登录仍须成员认证；个人模式不得自动激活协作。
 - 个人默认可保留非企业的官方 bundle（例如 `@deepseek-ai/dsh-experimental-auto-review`），见 `apps/desktop/scripts/workdsh-package-boundary.mjs` 的 `PERSONAL_DEFAULT_EXTRA_BUNDLES`。
-- 默认本机端口为 `15200`（`apps/desktop/src/runtime-port.ts`）；已有工作区保留原端口记录。
+- 社区默认插件钉在同文件的 `CATALOG_PACKAGES`（含 mineru / `@liustack/modsearch` / video-lens / video-studio 等）；侧栏 Git/Diff 默认关闭见 `apps/desktop/scripts/praxis-default-sidebar.patch.yml`。
+- LibTV CLI 以内置技能 `libtv-skill` 交付（源：https://github.com/libtv-labs/libtv-skills），需配置 `LIBTV_ACCESS_KEY`；不预装旗舰套件其它物料。
+- 默认本机端口为 `15200`（`apps/desktop/src/runtime-port.ts`）。仍记录官方默认 `3080` 的旧工作区会一次性迁到 `15200`，避免与官方 DSH 抢端口；其他已有端口记录仍保留。
 - IM 机器人默认隐藏侧栏入口（`integrations/dsh-im/sidebar-settings.json` → `hide`），入口仍在设置中。
 
 ### F. 刻意未改（升级时一般不用动）

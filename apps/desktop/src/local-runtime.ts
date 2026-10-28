@@ -36,6 +36,14 @@ function hideImSidebar(home: string): void {
   mkdirSync(sidebar, { recursive: true, mode: 0o700 })
   writeJson(join(sidebar, 'sidebar-settings.json'), { version: 1, mode: 'hide' })
 }
+
+/** Fresh personal Profiles hide better-sidebar Git / Diff tabs; settings can re-enable. */
+const PERSONAL_SIDEBAR_DEFAULTS = `- id: better-sidebar
+  config:
+    tabsEnabled:
+      git: false
+      diff: false
+`
 function baseDigest(source: string, base: ProfilePackage, version: string): string {
   const marker = join(source, '.workdsh-desktop-release.json')
   const workspace = join(source, 'pnpm-workspace.yaml')
@@ -88,7 +96,7 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
   let changed = previous?.pendingInstallation === true
   if (!existsSync(manifest)) {
     writeJson(manifest, base)
-    writeFileSync(join(target, 'cordis.patch.yml'), '[]\n', { mode: 0o600 })
+    writeFileSync(join(target, 'cordis.patch.yml'), PERSONAL_SIDEBAR_DEFAULTS, { mode: 0o600 })
     // Bundled optional media (e.g. 企业连接) is carried into member dependencies and must install.
     changed = Object.keys(base.dependencies ?? {}).length > 0 || Object.keys(base.optionalDependencies ?? {}).length > 0
   } else if (previous?.digest !== digest) {

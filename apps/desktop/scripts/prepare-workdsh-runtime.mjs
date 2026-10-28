@@ -28,7 +28,7 @@ if (!existsSync(manifestFile)) throw new Error('Pack built current kaiwu sources
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
 verifyProfileRelease(manifest, DSH_VERSION, RELEASE_PACKAGES)
 verifyReleaseArchives(manifest, release)
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v7', architecture, release: manifest })
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v8', architecture, release: manifest, catalog: CATALOG_PACKAGES })
 const markerPath = join(profile, '.workdsh-desktop-release.json')
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'))
 function run(command, args, options = {}) {
@@ -168,6 +168,8 @@ if (!prepared) {
     const patches = RELEASE_PACKAGES.filter(name => !PRODUCT_PACKAGES.includes(name) && !ENTERPRISE_PACKAGES.includes(name))
       .map(name => join(profile, 'node_modules', name, 'cordis.patch.yml')).filter(existsSync)
       .map(path => readFileSync(path, 'utf8').trim())
+    // Praxis: disable better-sidebar Git / Diff tabs by default (settings can re-enable).
+    patches.push(readFileSync(join(desktopRoot, 'scripts/praxis-default-sidebar.patch.yml'), 'utf8').trim())
     writeFileSync(join(profile, 'cordis.yml'), '[]\n')
     writeFileSync(join(profile, 'cordis.patch.yml'), composeProfilePatches(patches))
     verifyInstalled()

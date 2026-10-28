@@ -96,3 +96,13 @@ it('keeps a legacy Home on its original port and refuses a busy origin before cr
   expect(migrated.managed && migrated.port).toBe(originalPort)
   expect(JSON.parse(await readFile(join(directory, '.workdsh-loopback.json'), 'utf8')).port).toBe(originalPort)
 })
+
+it('migrates a Home that still records official DSH port 3080 onto the kaiwu preferred port', async () => {
+  const directory = await home()
+  const preferred = await occupied(0)
+  await new Promise<void>((resolve, reject) => servers.at(-1)!.close(error => error ? reject(error) : resolve()))
+  await writeFile(join(directory, '.workdsh-loopback.json'), JSON.stringify({ version: 1, host: '127.0.0.1', port: 3080 }) + '\n')
+  const selected = await prepareRuntimePort(directory, [], { preferredPort: preferred })
+  expect(selected.managed && selected.port).toBe(preferred)
+  expect(JSON.parse(await readFile(join(directory, '.workdsh-loopback.json'), 'utf8'))).toEqual({ version: 1, host: '127.0.0.1', port: preferred })
+})
