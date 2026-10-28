@@ -76,6 +76,8 @@
 | `patch-plugin-display-names.mjs` | 插件管理 UI 去掉技术前缀 `workdsh-` |
 | `patch-sidebar-toggles.mjs` | 侧边卡片关闭时仍显示开关 |
 | `patch-appearance-dark-dialog.mjs` | 深色模式下设置弹层跟深色表面，不再停在白底 |
+| `patch-remotion-native.mjs` | Remotion 页改用与其他页面相同的标题、按钮和页签，并从设置侧栏去掉 Remotion |
+| `patch-settings-nav-icons.mjs` | 设置侧栏里 IM机器人、视觉模型、ComfyUI 各自使用不同图标；个人区和企业区共用这一份设置壳 |
 | `AccountMenu.tsx` | 设置菜单参考实现，**不参与打包** |
 
 上游若更新了对应官方 client 文件，补丁可能对不上：以各脚本内的 marker / 失败报错为准，按新字节重写补丁，**不要删掉调用**。

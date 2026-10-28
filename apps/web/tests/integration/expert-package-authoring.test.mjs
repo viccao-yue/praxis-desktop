@@ -32,6 +32,17 @@ test('package rejects identity mismatch, missing role, unsafe resources and tool
 });
 
 
+test('a workspace folder prefix and a declared avatar without bytes still save the text package', () => {
+  const files = Object.fromEntries(Object.entries(fixture()).map(([path, content]) => [`presales-solution-consultant-package/${path}`, content]));
+  const meta = JSON.parse(files['presales-solution-consultant-package/.workdsh-expert/plugin.json']);
+  meta.avatar = './avatars/expert.png';
+  files['presales-solution-consultant-package/.workdsh-expert/plugin.json'] = JSON.stringify(meta);
+  const definition = definitionFromDocuments(files);
+  assert.equal(definition.avatarRef, undefined);
+  assert.equal(definition.packageDocuments['agents/researcher.md'], fixture()['agents/researcher.md']);
+  assert.equal(definition.packageDocuments['skills/research-method/SKILL.md'].includes('Use references'), true);
+});
+
 test('binary avatar and executable CLI survive complete export/import with exact bytes', () => {
   const files = fixture(true);
   const meta = JSON.parse(files['.workdsh-expert/plugin.json']);

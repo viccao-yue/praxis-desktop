@@ -61,7 +61,26 @@ export function authoringDocuments(definition: ExpertDefinition): Record<string,
   return documents;
 }
 
+/** Drop one shared workspace folder so `package/agents/a.md` is stored as `agents/a.md`. */
+function normalizeAuthoringDocuments(documents: AuthoringDocuments): AuthoringDocuments {
+  const normalized: Record<string, string> = {};
+  for (const [raw, content] of Object.entries(documents)) {
+    const path = raw.replaceAll('\\', '/').replace(/^\.\//, '');
+    if (!path || path.startsWith('/') || path.split('/').some(part => !part || part === '.' || part === '..')) fail('制作文件路径无效或数量超限。');
+    normalized[path] = content;
+  }
+  const keys = Object.keys(normalized);
+  const manifests = ['.workdsh-expert/plugin.json', '.codebuddy-plugin/plugin.json'];
+  if (manifests.some(name => name in normalized) || keys.length === 0) return normalized;
+  const root = keys[0]?.split('/')[0];
+  if (!root || !keys.every(key => key.startsWith(`${root}/`))) return normalized;
+  const stripped: Record<string, string> = {};
+  for (const [key, content] of Object.entries(normalized)) stripped[key.slice(root.length + 1)] = content;
+  return manifests.some(name => name in stripped) ? stripped : normalized;
+}
+
 export function definitionFromDocuments(documents: AuthoringDocuments, assets: PackageAssets = {}): ExpertDefinition {
+  documents = normalizeAuthoringDocuments(documents);
   validateResources(documents, assets);
   const paths = Object.keys(documents);
   const packageMeta = documents['.workdsh-expert/plugin.json'] ?? documents['.codebuddy-plugin/plugin.json'];
@@ -106,7 +125,6 @@ export function definitionFromDocuments(documents: AuthoringDocuments, assets: P
     for (const skill of meta.skills ?? []) { const path = String(skill).replace(/^\.\//, ''); if (!/^skills\/[a-z][a-z0-9-]+$/.test(path) || !documents[`${path}/SKILL.md`]) fail('附带 Skill 声明缺少 SKILL.md。'); }
     const avatar = packageAvatar(documents, assets);
     definition = { ...definition, ...(avatar ? { avatarRef: avatar } : {}), packageDocuments: { ...documents }, ...(Object.keys(assets).length ? { packageAssets: { ...assets } } : {}) };
-    for (const member of meta.members ?? []) if (member.avatar && !assets[String(member.avatar).replace(/^\.\//, '')]) fail('成员头像资源缺失。');
     const issues = validateDefinition(definition);
     if (issues.length) throw new ExpertsError('experts/invalid-definition', '专家包未通过校验。', { issues });
     return normalizeDefinition(definition);

@@ -38,7 +38,8 @@ export function packageAvatar(files: Readonly<Record<string, string>>, assets: P
   if (!avatar) return;
   const normalized = String(avatar).replace(/^\.\//, '');
   const asset = assets[normalized];
-  if (!asset) throw new ExpertsError('experts/invalid-definition', '声明的头像资源缺失。');
+  // Text drafts are saved before the image. save_resources attaches the bytes later.
+  if (!asset) return;
   const bytes = assetBytes(normalized, asset), type = imageType(bytes);
   if (!type) throw new ExpertsError('experts/invalid-definition', '头像不是受支持的图片。');
   return `data:${type};base64,${asset.base64}`;

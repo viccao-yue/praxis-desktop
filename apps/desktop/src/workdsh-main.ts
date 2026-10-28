@@ -456,7 +456,9 @@ async function activateEnterprise(existingHome: boolean): Promise<void> {
     if (verifying || switching) return
     verifying = true
     void session.login.verify().then(()=>{
-      const current=installedEnterprisePlugins(join(runtimeHome(),'profiles',PROFILE_NAME),JSON.parse(readFileSync(join(bundledProfileDirectory(),'node_modules','@deepseek-ai','dsh','package.json'),'utf8')).version)
+      // Plugins were installed into this enterprise Home. The personal Home
+      // only records the connection package and does not carry its node_modules.
+      const current=installedEnterprisePlugins(join(session.home,'profiles',PROFILE_NAME),JSON.parse(readFileSync(join(bundledProfileDirectory(),'node_modules','@deepseek-ai','dsh','package.json'),'utf8')).version)
       if(pluginNames.some(name=>!current.includes(name)))throw new Error('企业插件已卸载，请重新安装后登录')
     }).catch(() => {
       dialog.showErrorBox('企业认证不可用', '企业账号已过期、被撤销、后台不可达或企业插件已卸载。本机企业运行将停止，请检查后重新登录。')
