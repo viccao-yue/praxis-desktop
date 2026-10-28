@@ -37,8 +37,8 @@ export const CATALOG_PACKAGES = Object.freeze({
   'dsh-mineru': '0.1.15',
   // Skill command /drawai-canvas. https://www.npmjs.com/package/dsh-drawai
   'dsh-drawai': '0.3.4',
-  // https://www.npmjs.com/package/dsh-remotion
-  'dsh-remotion': '0.9.0',
+  // 0.8+ requires DSH >=0.2.1-rc.3. This runtime is 0.2.1-rc.2.
+  'dsh-remotion': '0.7.0',
   // https://www.npmjs.com/package/dsh-comfyui
   'dsh-comfyui': '0.5.5',
 })

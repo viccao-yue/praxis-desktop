@@ -143,7 +143,10 @@ const require=createRequire(new URL('../package.json',import.meta.url));
 function clientFixture(status,{providerEnabled=false}={}) {
   let apply,timer,current='first',disposed=false,serial=0;
   const cleanups=[],listeners=new Set(),tabs=[],opens=[],closes=[];
-  const context={URL,AbortController,AbortSignal,console,
+  const head={querySelectorAll(){return [];},append(){}};
+  const document={head,title:'',createElement(){return {remove(){}};},querySelector(){return null;}};
+  class MutationObserver{observe(){}disconnect(){}}
+  const context={URL,AbortController,AbortSignal,console,document,MutationObserver,
     fetch:async(_url,options)=>Response.json(await status(JSON.parse(options.body))),
     window:{location:{href:'https://application.test/'},setInterval(callback){timer=callback;return 1;},clearInterval(){},
       __ModuleLoader__:{load(module){apply=module.factory(id=>id==='@deepseek-ai/dsh-client-ui-primitives'?{}:require(id)).apply;}}},
