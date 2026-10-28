@@ -14,7 +14,7 @@ import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { connectionEntryHtml, enterpriseLoginHtml, connectionLoadingHtml } from './connection-entry.ts'
-import { connectionPartition, enterpriseConnection, type DesktopConnection } from './connection-mode.ts'
+import { connectionPartition, enterpriseConnection, isReturnToEntryUrl, type DesktopConnection } from './connection-mode.ts'
 import { parseDeploymentConfig } from './deployment-config.ts'
 import { EnterpriseLogin, startEnterpriseAuthority, type Authority } from './enterprise-auth.ts'
 import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from './local-runtime.ts'
@@ -157,7 +157,7 @@ function openWindow(url: string, connection: DesktopConnection = { mode: 'person
   if (!carrier) {
     const origin = new URL(url).origin
     page.webContents.on('will-navigate', (event, target) => {
-      if (target === 'praxis://entry' && window === page && !switching) {
+      if (isReturnToEntryUrl(target) && window === page && !switching) {
         event.preventDefault()
         if (!enterprisePluginAvailable()) { dialog.showErrorBox('企业插件不可用', '请先安装兼容的企业账号插件。'); return }
         void returnToEntry()

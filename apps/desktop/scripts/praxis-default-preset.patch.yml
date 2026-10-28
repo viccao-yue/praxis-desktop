@@ -1,0 +1,6 @@
+# Fresh personal and enterprise workspaces start new tasks in 标准模式.
+# selectedDefault stays a user choice; only the product default is pinned here.
+- id: agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  config:
+    default: standard

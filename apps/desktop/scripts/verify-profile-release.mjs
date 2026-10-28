@@ -53,7 +53,13 @@ export function verifyOfficialWebPackages(manifest, profile, config) {
 }
 
 export function verifyDefaultProfile(manifest) {
-  const selected = (manifest.dsh?.profile?.bundles ?? []).filter(name => name.startsWith('workdsh-')).sort()
+  const bundles = manifest.dsh?.profile?.bundles ?? []
+  // 企业连接 is the default personal entry for 设置 → 企业账号. Identity and
+  // collaboration stay out of this list until the member logs in.
+  if (!bundles.includes('workdsh-enterprise-connection')) {
+    throw new Error('Desktop personal default bundle missing: workdsh-enterprise-connection')
+  }
+  const selected = bundles.filter(name => name.startsWith('workdsh-') && name !== 'workdsh-enterprise-connection').sort()
   const direct = Object.keys(manifest.dependencies ?? {}).filter(name => name.startsWith('workdsh-')).sort()
   const optional = Object.keys(manifest.optionalDependencies ?? {}).filter(name => name.startsWith('workdsh-')).sort()
   // Enterprise connection may ship as optional install media; identity/collaboration stay out of the base Profile.
@@ -83,9 +89,10 @@ export function verifyDefaultProfile(manifest) {
   }
 }
 
-/** Shipping enterprise code must not silently activate it in the personal composition. */
+/** Personal composition may load the 企业连接 client. Identity and collaboration stay inactive until login. */
 export function verifyDefaultComposition(config) {
   for (const name of ENTERPRISE_PACKAGES) {
+    if (name === 'workdsh-enterprise-connection') continue
     if (config.includes(name)) throw new Error('Enterprise package is active in the default personal composition: ' + name)
   }
 }

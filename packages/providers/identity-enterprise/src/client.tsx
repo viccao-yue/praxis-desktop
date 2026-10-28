@@ -84,7 +84,7 @@ function Account(_props: PropsRuntime<'settings.section'>) {
         </dl>
       </div>
       <button style={{ ...button, marginTop: 16 }} disabled={busy} onClick={() => void logout()}>{busy ? '正在退出…' : '退出企业账号'}</button>
-    </> : <div><p>企业插件已安装。连接公司后台并登录后，才会启用企业账号和权限。个人数据不会自动复制到企业空间。</p><button style={button} onClick={() => window.location.assign('workdsh://entry')}>连接企业</button></div>}
+    </> : <div><p>企业插件已安装。连接公司后台并登录后，才会启用企业账号和权限。个人数据不会自动复制到企业空间。</p><button type="button" style={button} onClick={() => window.location.assign('praxis://entry')}>连接企业</button></div>}
     {desktop && account && <section aria-label="企业正文同步" style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: 18 }}>企业正文同步</h2>
       <p style={{ lineHeight: 1.7, color: 'var(--dsw-alias-label-secondary)' }}>同步用户与助手已显示的文字；不上传思考、工具轨迹或附件。失败时本地记录保留，可重试。已同步正文由本组织有权限的管理员只读查看。</p>

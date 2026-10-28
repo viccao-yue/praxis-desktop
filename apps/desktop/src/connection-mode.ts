@@ -27,3 +27,13 @@ export function connectionPartition(connection: DesktopConnection): string | und
 export function enterpriseNamespace(origin: string, organizationId: string, principalId: string): string {
   return createHash('sha256').update(JSON.stringify([enterpriseConnection(origin).portalOrigin, organizationId, principalId])).digest('hex')
 }
+
+/** Settings 「连接企业」 and the carrier entry both return to the mode chooser. */
+export function isReturnToEntryUrl(target: string): boolean {
+  try {
+    const url = new URL(target)
+    return (url.protocol === 'praxis:' || url.protocol === 'workdsh:') && url.hostname === 'entry' && (url.pathname === '' || url.pathname === '/')
+  } catch {
+    return false
+  }
+}

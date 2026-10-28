@@ -35,11 +35,12 @@ export const CATALOG_PACKAGES = Object.freeze({
   'dsh-vision-plugin': '1.4.0',
   // Praxis default community plugins (personal base installer).
   'dsh-mineru': '0.1.15',
-  // https://github.com/liustack/modsearch — free web search / fetch for DSH.
-  '@liustack/modsearch': '5.10.10',
-  'dsh-video-lens': '0.3.2',
-  // Windows-oriented video studio; still ship so plugin inventory is complete.
-  'dsh-video-studio': '0.4.3',
+  // Skill command /drawai-canvas. https://www.npmjs.com/package/dsh-drawai
+  'dsh-drawai': '0.3.4',
+  // https://www.npmjs.com/package/dsh-remotion
+  'dsh-remotion': '0.9.0',
+  // https://www.npmjs.com/package/dsh-comfyui
+  'dsh-comfyui': '0.5.5',
 })
 
 export const RELEASE_PACKAGES = Object.freeze([

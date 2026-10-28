@@ -54,7 +54,8 @@ it('carries bundled optional enterprise-connection into new Homes and schedules 
   expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dependencies).toEqual({
     'workdsh-enterprise-connection': 'file:../../package-cache/workdsh-enterprise-connection-0.1.0-alpha.2.tgz',
   })
-  expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dsh.profile.bundles).not.toContain('workdsh-enterprise-connection')
+  expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dsh.profile.bundles).toContain('workdsh-enterprise-connection')
+  expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dsh.profile.bundles).not.toContain('workdsh-provider-identity-enterprise')
 })
 
 it('isolates account/backend directories, device records and credential/skill environments', () => {

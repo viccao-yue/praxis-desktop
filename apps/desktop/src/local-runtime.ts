@@ -20,11 +20,15 @@ function memberDefaults(release: ProfilePackage): ProfilePackage {
     ?? release.dependencies?.['workdsh-enterprise-connection']
   if (typeof connection === 'string') dependencies['workdsh-enterprise-connection'] = connection
   const dsh = release.dsh ? structuredClone(release.dsh) : undefined
-  // Keep personal bundles free of enterprise activation; connection package is install-only until login.
+  // Personal mode keeps local identity. 企业连接 stays in the default bundles so
+  // 设置 → 企业账号 can open the login chooser; identity and collaboration
+  // activate only after that login.
   if (dsh?.profile?.bundles) {
     dsh.profile.bundles = dsh.profile.bundles.filter(name => !name.startsWith('workdsh-provider-identity-enterprise')
-      && !name.startsWith('workdsh-plugin-enterprise-collaboration')
-      && name !== 'workdsh-enterprise-connection')
+      && !name.startsWith('workdsh-plugin-enterprise-collaboration'))
+    if (typeof connection === 'string' && !dsh.profile.bundles.includes('workdsh-enterprise-connection')) {
+      dsh.profile.bundles.push('workdsh-enterprise-connection')
+    }
   }
   return { name: 'workdsh-member-profile', private: true, type: 'module', packageManager: release.packageManager,
     dependencies, ...(dsh ? { dsh } : {}) }

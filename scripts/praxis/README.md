@@ -74,16 +74,18 @@
 | `patch-sidebar-icons.mjs` | 左侧栏插件、自动化任务图标 |
 | `patch-skillhub-plaza.mjs` | 插件广场改为侧栏页，去掉重复技能页 |
 | `patch-plugin-display-names.mjs` | 插件管理 UI 去掉技术前缀 `workdsh-` |
+| `patch-sidebar-toggles.mjs` | 侧边卡片关闭时仍显示开关 |
+| `patch-appearance-dark-dialog.mjs` | 深色模式下设置弹层跟深色表面，不再停在白底 |
 | `AccountMenu.tsx` | 设置菜单参考实现，**不参与打包** |
 
 上游若更新了对应官方 client 文件，补丁可能对不上：以各脚本内的 marker / 失败报错为准，按新字节重写补丁，**不要删掉调用**。
 
 ### E. 产品边界（勿在升级时带回）
 
-- 企业连接 `workdsh-enterprise-connection` 可作为 optionalDependency 打进安装包，便于「插件」里默认可见；**不要**把它写进个人 `dsh.profile.bundles`，也不要默认启用身份/协作。
+- 企业连接 `workdsh-enterprise-connection` 打进默认个人 bundle，设置里可以直接「连接企业」。身份插件和协作插件仍不在个人组合里激活；登录后才挂上。
 - 企业登录仍须成员认证；个人模式不得自动激活协作。
 - 个人默认可保留非企业的官方 bundle（例如 `@deepseek-ai/dsh-experimental-auto-review`），见 `apps/desktop/scripts/workdsh-package-boundary.mjs` 的 `PERSONAL_DEFAULT_EXTRA_BUNDLES`。
-- 社区默认插件钉在同文件的 `CATALOG_PACKAGES`（含 mineru / `@liustack/modsearch` / video-lens / video-studio 等）；侧栏 Git/Diff 默认关闭见 `apps/desktop/scripts/praxis-default-sidebar.patch.yml`。
+- 社区默认插件钉在同文件的 `CATALOG_PACKAGES`（含 mineru、`dsh-drawai`、`dsh-remotion`、`dsh-comfyui`）。不要把 modsearch、video-lens、video-studio 加回默认列表。侧栏 Git/Diff 默认关闭，但开关保持可见，见 `apps/desktop/scripts/praxis-default-sidebar.patch.yml` 和 `scripts/praxis/patch-sidebar-toggles.mjs`。新任务默认标准模式见 `apps/desktop/scripts/praxis-default-preset.patch.yml`。
 - LibTV CLI 以内置技能 `libtv-skill` 交付（源：https://github.com/libtv-labs/libtv-skills），需配置 `LIBTV_ACCESS_KEY`；不预装旗舰套件其它物料。
 - 默认本机端口为 `15200`（`apps/desktop/src/runtime-port.ts`）。仍记录官方默认 `3080` 的旧工作区会一次性迁到 `15200`，避免与官方 DSH 抢端口；其他已有端口记录仍保留。
 - IM 机器人默认隐藏侧栏入口（`integrations/dsh-im/sidebar-settings.json` → `hide`），入口仍在设置中。

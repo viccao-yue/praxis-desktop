@@ -15,6 +15,8 @@ import { patchWelcomeNoticeAt } from '../../../scripts/praxis/patch-welcome-noti
 import { patchSkillhubPlazaAt } from '../../../scripts/praxis/patch-skillhub-plaza.mjs'
 import { patchSidebarIconsAt } from '../../../scripts/praxis/patch-sidebar-icons.mjs'
 import { patchPluginDisplayNamesAt } from '../../../scripts/praxis/patch-plugin-display-names.mjs'
+import { patchSidebarTogglesAt } from '../../../scripts/praxis/patch-sidebar-toggles.mjs'
+import { patchAppearanceDarkDialogAt } from '../../../scripts/praxis/patch-appearance-dark-dialog.mjs'
 const architecture = runtimeArchitecture()
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = join(desktopRoot, 'build/workdsh-runtime')
@@ -28,7 +30,7 @@ if (!existsSync(manifestFile)) throw new Error('Pack built current kaiwu sources
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
 verifyProfileRelease(manifest, DSH_VERSION, RELEASE_PACKAGES)
 verifyReleaseArchives(manifest, release)
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v8', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v9', architecture, release: manifest, catalog: CATALOG_PACKAGES })
 const markerPath = join(profile, '.workdsh-desktop-release.json')
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'))
 function run(command, args, options = {}) {
@@ -91,6 +93,10 @@ function verifyInstalled() {
   // Praxis: official 插件 / 自动化任务 glyphs match the owned sidebar set.
   patchSidebarIconsAt(profile)
   patchPluginDisplayNamesAt(profile)
+  patchSidebarTogglesAt(profile)
+  // Praxis: settings dialog must follow 深色模式. The appearance plugin's light
+  // #root rule otherwise keeps the dialog white while its text goes light.
+  patchAppearanceDarkDialogAt(profile)
   for (const id of ['workdsh-installation-probe', 'workdsh-identity-local', 'workdsh-access', 'workdsh-audit', 'workdsh-workbenches']) {
     if (!config.stdout.includes('id: ' + id)) throw new Error('Missing required infrastructure: ' + id)
   }
@@ -122,8 +128,11 @@ if (!prepared) {
       const target = PRODUCT_PACKAGES.includes(item.name) ? dependencies : optionalDependencies
       target[item.name] = 'file:../../package-cache/' + item.filename
     }
+    const enterprisePlugins = join(release, 'enterprise-plugins')
+    const enterpriseManifest = join(enterprisePlugins, 'enterprise-plugin-manifest.json')
+    if (!existsSync(enterpriseManifest)) throw new Error('Desktop release is missing enterprise-plugins/enterprise-plugin-manifest.json')
     const pkg = { name: 'workdsh-desktop-profile', private: true, type: 'module', packageManager: `pnpm@${OFFICIAL_PNPM_VERSION}`, dependencies, optionalDependencies,
-      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...Object.keys(CATALOG_PACKAGES), ...PERSONAL_DEFAULT_EXTRA_BUNDLES] } } }
+      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...Object.keys(CATALOG_PACKAGES), ...PERSONAL_DEFAULT_EXTRA_BUNDLES, 'workdsh-enterprise-connection'] } } }
     writeFileSync(join(profile, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
     const overrides = Object.entries(manifest.runtimeOverrides ?? {}).map(([name, version]) => `  ${JSON.stringify(name)}: ${JSON.stringify(version)}`).join('\n')
     writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'autoInstallPeers: true\nstrictPeerDependencies: false\n' + runtimeArchitectureYaml(architecture) + 'overrides:\n' + overrides + '\n')
@@ -145,31 +154,37 @@ if (!prepared) {
       if (pass === 8) throw new Error('Official runtime peer closure did not converge')
       run(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['--yes', `pnpm@${OFFICIAL_PNPM_VERSION}`, '--dir', profile, 'add', '--save-exact', '--ignore-scripts', ...missing.values()], { shell: process.platform === 'win32' })
     }
-    // Praxis: ship 企业连接 in the default Profile install graph (not in personal bundles).
-    const enterprisePlugins = join(release, 'enterprise-plugins')
-    const enterpriseManifest = join(enterprisePlugins, 'enterprise-plugin-manifest.json')
-    if (existsSync(enterpriseManifest)) {
-      const meta = readJson(enterpriseManifest)
-      if (meta.name !== 'workdsh-enterprise-connection' || typeof meta.filename !== 'string') {
-        throw new Error('Invalid enterprise connection delivery manifest')
-      }
-      const archive = join(enterprisePlugins, meta.filename)
-      if (!existsSync(archive)) throw new Error('Enterprise connection archive missing: ' + archive)
-      mkdirSync(join(output, 'enterprise-plugins'), { recursive: true })
-      cpSync(archive, join(output, 'enterprise-plugins', meta.filename))
-      cpSync(enterpriseManifest, join(output, 'enterprise-plugins', 'enterprise-plugin-manifest.json'))
-      cpSync(archive, join(cache, meta.filename))
-      run(process.platform === 'win32' ? 'npx.cmd' : 'npx', [
-        '--yes', `pnpm@${OFFICIAL_PNPM_VERSION}`, '--dir', profile,
-        'add', '--save-exact', '--save-optional', '--ignore-scripts',
-        'workdsh-enterprise-connection@file:../../package-cache/' + meta.filename,
-      ], { shell: process.platform === 'win32' })
+    // Praxis: 企业连接 is a default personal bundle. Its client opens 连接企业.
+    // Identity and collaboration stay inactive until that login.
+    const meta = readJson(enterpriseManifest)
+    if (meta.name !== 'workdsh-enterprise-connection' || typeof meta.filename !== 'string') {
+      throw new Error('Invalid enterprise connection delivery manifest')
+    }
+    const archive = join(enterprisePlugins, meta.filename)
+    if (!existsSync(archive)) throw new Error('Enterprise connection archive missing: ' + archive)
+    mkdirSync(join(output, 'enterprise-plugins'), { recursive: true })
+    cpSync(archive, join(output, 'enterprise-plugins', meta.filename))
+    cpSync(enterpriseManifest, join(output, 'enterprise-plugins', 'enterprise-plugin-manifest.json'))
+    cpSync(archive, join(cache, meta.filename))
+    run(process.platform === 'win32' ? 'npx.cmd' : 'npx', [
+      '--yes', `pnpm@${OFFICIAL_PNPM_VERSION}`, '--dir', profile,
+      'add', '--save-exact', '--save-optional', '--ignore-scripts',
+      'workdsh-enterprise-connection@file:../../package-cache/' + meta.filename,
+    ], { shell: process.platform === 'win32' })
+    const installedProfile = readJson(join(profile, 'package.json'))
+    installedProfile.dsh ??= {}
+    installedProfile.dsh.profile ??= {}
+    installedProfile.dsh.profile.bundles ??= []
+    if (!installedProfile.dsh.profile.bundles.includes('workdsh-enterprise-connection')) {
+      installedProfile.dsh.profile.bundles.push('workdsh-enterprise-connection')
+      writeFileSync(join(profile, 'package.json'), JSON.stringify(installedProfile, null, 2) + '\n')
     }
     const patches = RELEASE_PACKAGES.filter(name => !PRODUCT_PACKAGES.includes(name) && !ENTERPRISE_PACKAGES.includes(name))
       .map(name => join(profile, 'node_modules', name, 'cordis.patch.yml')).filter(existsSync)
       .map(path => readFileSync(path, 'utf8').trim())
-    // Praxis: disable better-sidebar Git / Diff tabs by default (settings can re-enable).
+    // Praxis: Git / Diff start off, and new tasks start in 标准模式.
     patches.push(readFileSync(join(desktopRoot, 'scripts/praxis-default-sidebar.patch.yml'), 'utf8').trim())
+    patches.push(readFileSync(join(desktopRoot, 'scripts/praxis-default-preset.patch.yml'), 'utf8').trim())
     writeFileSync(join(profile, 'cordis.yml'), '[]\n')
     writeFileSync(join(profile, 'cordis.patch.yml'), composeProfilePatches(patches))
     verifyInstalled()

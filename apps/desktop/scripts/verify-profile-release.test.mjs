@@ -96,7 +96,7 @@ function defaultProfile() {
   return {
     dependencies: Object.fromEntries(PRODUCT_PACKAGES.map(name => [name, 'file:../cache.tgz'])),
     optionalDependencies: Object.fromEntries(RELEASE_PACKAGES.filter(name => !PRODUCT_PACKAGES.includes(name)).map(name => [name, 'file:../cache.tgz'])),
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...PERSONAL_DEFAULT_EXTRA_BUNDLES] } },
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...PERSONAL_DEFAULT_EXTRA_BUNDLES, 'workdsh-enterprise-connection'] } },
   }
 }
 
@@ -147,6 +147,7 @@ test('enterprise delivery cannot activate or expose enterprise identity in the d
   exposed.dependencies[ENTERPRISE_PACKAGES[0]] = 'file:../external-identity.tgz'
   assert.throws(() => verifyDefaultProfile(exposed), /must not require enterprise package/)
   assert.doesNotThrow(() => verifyDefaultComposition('- id: workdsh-identity-local\n  name: workdsh-provider-identity-local\n'))
+  assert.doesNotThrow(() => verifyDefaultComposition('- insert:\n    - id: workdsh-enterprise-connection\n      name: workdsh-enterprise-connection\n'))
   assert.throws(() => verifyDefaultComposition('- insert:\n    - id: workdsh-identity-enterprise\n      name: workdsh-provider-identity-enterprise\n'), /active in the default personal composition/)
   assert.throws(() => verifyDefaultComposition('- name: workdsh-provider-identity-enterprise/desktop\n'), /active in the default personal composition/)
 })

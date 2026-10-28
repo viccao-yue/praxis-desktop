@@ -1,6 +1,6 @@
 # Praxis personal defaults for dsh-better-sidebar (侧边栏内容).
 # Absent tabsEnabled keys mean enabled; explicit false hides Git / Diff by default.
-# Users can still re-enable them under 设置 → 侧边栏内容.
+# The card stays a switch, including while off, so 设置 → 侧边卡片 can turn them back on.
 - id: better-sidebar
   config:
     tabsEnabled:

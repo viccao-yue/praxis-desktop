@@ -150,7 +150,10 @@ export async function afterPack(context: PackContext): Promise<void> {
   }
   const productPackages = new Set(PRODUCT_PACKAGES)
   const selected = profileManifest.dsh?.profile?.bundles ?? []
-  const selectedWorkdsh = selected.filter(name => name.startsWith('workdsh-'))
+  if (!selected.includes('workdsh-enterprise-connection')) {
+    throw new Error('Desktop personal profile must enable workdsh-enterprise-connection')
+  }
+  const selectedWorkdsh = selected.filter(name => name.startsWith('workdsh-') && name !== 'workdsh-enterprise-connection')
   const directWorkdsh = Object.keys(profileManifest.dependencies ?? {}).filter(name => name.startsWith('workdsh-'))
   if (selectedWorkdsh.length !== productPackages.size || selectedWorkdsh.some(name => !productPackages.has(name))) {
     throw new Error(`Desktop must select exactly ${productPackages.size} kaiwu product bundles, found ${selectedWorkdsh.join(', ')}`)

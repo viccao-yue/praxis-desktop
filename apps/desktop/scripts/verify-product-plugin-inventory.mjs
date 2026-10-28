@@ -53,7 +53,12 @@ try {
       throw new Error(`kaiwu product bundle is inactive or invalid: ${bundle.name}: ${JSON.stringify(bundle)}`)
     }
   }
+  const connection = allBundles.find(row => row.name === 'workdsh-enterprise-connection')
+  if (!connection?.enabled || connection.error) {
+    throw new Error('企业连接 must be enabled in the personal base Profile')
+  }
   for (const name of ENTERPRISE_PACKAGES) {
+    if (name === 'workdsh-enterprise-connection') continue
     const bundle = allBundles.find(row => row.name === name)
     if (bundle?.enabled) throw new Error('Enterprise bundle must stay disabled in the personal base Profile: ' + name)
   }

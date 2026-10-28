@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { connectionPartition, enterpriseConnection } from '../src/connection-mode.ts'
+import { connectionPartition, enterpriseConnection, isReturnToEntryUrl } from '../src/connection-mode.ts'
 
 describe('Desktop connection boundary', () => {
   it('keeps personal browser storage unchanged and separates enterprise origins', () => {
@@ -14,6 +14,13 @@ describe('Desktop connection boundary', () => {
     expect(() => enterpriseConnection('http://example.test/')).toThrow()
     expect(() => enterpriseConnection('file:///etc/passwd')).toThrow()
     expect(() => enterpriseConnection('javascript:alert(1)')).toThrow()
+  })
+  it('accepts the settings and carrier links that return to the mode chooser', () => {
+    expect(isReturnToEntryUrl('praxis://entry')).toBe(true)
+    expect(isReturnToEntryUrl('workdsh://entry')).toBe(true)
+    expect(isReturnToEntryUrl('praxis://entry/')).toBe(true)
+    expect(isReturnToEntryUrl('praxis://personal')).toBe(false)
+    expect(isReturnToEntryUrl('https://evil.test/entry')).toBe(false)
   })
   it('refuses credentials, bootstrap tokens and deep links as portal configuration', () => {
     for (const value of ['https://user:password@example.test/', 'https://example.test/?token=secret', 'https://example.test/#token', 'https://example.test/conversation']) {
