@@ -56,7 +56,9 @@ try {
   }
   for (const name of [...PRODUCT_PACKAGES, 'workdsh-bundle']) if (!ids.has(name)) throw new Error('Owned client missing at runtime: ' + name + '; owned graph=' + [...ids].filter(row => row.startsWith('workdsh-')).join(',') + '; ' + diagnostics())
   const owned = [...ids].filter(name => name.startsWith('workdsh-')).sort()
-  if (JSON.stringify(owned) !== JSON.stringify([...PRODUCT_PACKAGES, 'workdsh-bundle'].sort())) throw new Error('Unexpected default owned client inventory')
+  // 企业连接 is a default personal client. Identity and collaboration stay out until login.
+  const expectedOwned = [...PRODUCT_PACKAGES, 'workdsh-bundle', 'workdsh-enterprise-connection'].sort()
+  if (JSON.stringify(owned) !== JSON.stringify(expectedOwned)) throw new Error(`Unexpected default owned client inventory: ${owned.join(',')} expected ${expectedOwned.join(',')}`)
   for (const batch of graph.batches) {
     const address = new URL(batch.url, url)
     if (address.origin !== new URL(url).origin) throw new Error('Client batch escaped the loopback runtime origin')

@@ -5,7 +5,7 @@ test('native new-session and default menus exclude every compiled expert includi
   const rows = [{id:'dsh-base'}, {id:'custom'}, {id:'wd-exp-work-retrospective-advisor-123'}, {id:'wd-exp-member-123'}];
   assert.deepEqual(nativePresetRows(rows), rows.slice(0,2));
   assert.equal(isNativePreset('wd-exp-public-team'), false);
-  assert.throws(() => requireNativePreset(rows[2].id), /召唤专家/);
+  assert.throws(() => requireNativePreset(rows[2].id), /召唤数字员工/);
   assert.doesNotThrow(() => requireNativePreset('dsh-base'));
 });
 
@@ -26,7 +26,7 @@ test('native new-session Slot adapter filters the roster and refuses internal se
   let writes = 0;
   const seat = registrations[0].component({ useAgentPresetSeat: selector => selector({options:rows}), select: async () => { writes++; } });
   assert.deepEqual(seat.props.useAgentPresetSeat(s => s.options), rows.slice(0,1));
-  await assert.rejects(seat.props.select(rows[1].id), /召唤专家/);
+  await assert.rejects(seat.props.select(rows[1].id), /召唤数字员工/);
   assert.equal(writes, 0);
   await seat.props.select('dsh-base');
   assert.equal(writes, 1);

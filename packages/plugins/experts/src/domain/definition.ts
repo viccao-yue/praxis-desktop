@@ -207,7 +207,10 @@ export function validateDefinition(candidate: unknown): readonly DomainIssue[] {
       }
     });
   }
-  const totalBytes = byteLength(JSON.stringify({ ...definition, team: undefined, packageDocuments: undefined, packageAssets: undefined, agentDocument: undefined }));
+  const measured = { ...definition, team: undefined, packageDocuments: undefined, packageAssets: undefined, agentDocument: undefined };
+  // Avatar bytes are an asset (packageAssets, 500KiB cap). A data URL in avatarRef is that same image, not authored text.
+  if (typeof measured.avatarRef === 'string' && measured.avatarRef.startsWith('data:image/')) delete measured.avatarRef;
+  const totalBytes = byteLength(JSON.stringify(measured));
   if (totalBytes > EXPERT_LIMITS.publishedDefinitionMaxBytes) {
     issues.push({
       code: 'definition/too-large',
