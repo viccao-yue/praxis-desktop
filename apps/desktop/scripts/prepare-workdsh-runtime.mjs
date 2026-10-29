@@ -18,6 +18,7 @@ import { patchPluginDisplayNamesAt } from '../../../scripts/praxis/patch-plugin-
 import { patchSidebarTogglesAt } from '../../../scripts/praxis/patch-sidebar-toggles.mjs'
 import { patchAppearanceDarkDialogAt } from '../../../scripts/praxis/patch-appearance-dark-dialog.mjs'
 import { patchRemotionNativeAt } from '../../../scripts/praxis/patch-remotion-native.mjs'
+import { patchRemotionJobAt } from '../../../scripts/praxis/patch-remotion-job.mjs'
 import { patchSettingsNavIconsAt } from '../../../scripts/praxis/patch-settings-nav-icons.mjs'
 const architecture = runtimeArchitecture()
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -101,6 +102,8 @@ function verifyInstalled() {
   patchAppearanceDarkDialogAt(profile)
   // Praxis: Remotion uses the same title, button and tab treatment as the other pages.
   patchRemotionNativeAt(profile)
+  // Praxis: remotion job queries use the task id, not the project id.
+  patchRemotionJobAt(profile)
   // Praxis: IM机器人 / 视觉模型 / ComfyUI each get their own settings-nav glyph.
   patchSettingsNavIconsAt(profile)
   for (const id of ['workdsh-installation-probe', 'workdsh-identity-local', 'workdsh-access', 'workdsh-audit', 'workdsh-workbenches']) {

@@ -77,6 +77,7 @@
 | `patch-sidebar-toggles.mjs` | 侧边卡片关闭时仍显示开关 |
 | `patch-appearance-dark-dialog.mjs` | 深色模式下设置弹层跟深色表面，不再停在白底 |
 | `patch-remotion-native.mjs` | Remotion 页改用与其他页面相同的标题、按钮和页签，并从设置侧栏去掉 Remotion |
+| `patch-remotion-job.mjs` | 查询 Remotion 任务时使用 prepare/preview/render 返回的任务编号；工程编号不再报成「编号无效」 |
 | `patch-settings-nav-icons.mjs` | 设置侧栏里 IM机器人、视觉模型、ComfyUI 各自使用不同图标；个人区和企业区共用这一份设置壳 |
 | `AccountMenu.tsx` | 设置菜单参考实现，**不参与打包** |
 
