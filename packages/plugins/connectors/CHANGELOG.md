@@ -1,3 +1,8 @@
+## 0.1.0-alpha.5 — Unreleased
+
+- 默认预置并启用 LibTV 远程 MCP（`https://mcp.liblib.tv/mcp`），个人区与企业区 MCP 服务管理可见；未填访问令牌时明确提示，填写后可在会话连接器中选择。
+- Streamable HTTP 访问令牌若未带 `Bearer`/`Basic` 前缀，连接时自动补上 `Bearer`。
+
 ## 0.1.0-alpha.4 — 2026-09-25
 
 - 将连接器插件按官方 DSH 0.1.7-rc.2 的公开接口重新打包。

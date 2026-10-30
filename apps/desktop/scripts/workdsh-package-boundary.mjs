@@ -41,6 +41,12 @@ export const CATALOG_PACKAGES = Object.freeze({
   'dsh-remotion': '0.7.0',
   // https://www.npmjs.com/package/dsh-comfyui
   'dsh-comfyui': '0.5.5',
+  // Native browser_* tools for personal and enterprise Profiles.
+  // https://www.npmjs.com/package/dsh-playwright-browser — verified on DSH 0.2.1-rc.2
+  'dsh-playwright-browser': '0.1.3',
+  // Praxis: 设置 → 邮件（个人区与企业区同一默认 Profile；侧栏入口由 patch-email-native 去掉）。
+  // https://www.npmjs.com/package/dsh-email — verified on DSH 0.2.1-rc.2
+  'dsh-email': '0.19.0',
 })
 
 export const RELEASE_PACKAGES = Object.freeze([

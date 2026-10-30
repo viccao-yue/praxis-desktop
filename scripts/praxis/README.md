@@ -78,7 +78,9 @@
 | `patch-appearance-dark-dialog.mjs` | 深色模式下设置弹层跟深色表面，不再停在白底 |
 | `patch-remotion-native.mjs` | Remotion 页改用与其他页面相同的标题、按钮和页签，并从设置侧栏去掉 Remotion |
 | `patch-remotion-job.mjs` | 查询 Remotion 任务时使用 prepare/preview/render 返回的任务编号；工程编号不再报成「编号无效」 |
-| `patch-settings-nav-icons.mjs` | 设置侧栏里 IM机器人、视觉模型、ComfyUI 各自使用不同图标；个人区和企业区共用这一份设置壳 |
+| `patch-remotion-job-bar.mjs` | Remotion 运行记录收进任务状态行，结束后可以关闭，不再占工程列表上方一整行 |
+| `patch-email-native.mjs` | 邮件只留在设置里（去掉侧栏入口），并统一标题/页签/按钮/空状态；未安装时跳过 |
+| `patch-settings-nav-icons.mjs` | 设置侧栏里 IM机器人、视觉模型、ComfyUI、邮件各自使用不同图标；个人区和企业区共用这一份设置壳 |
 | `AccountMenu.tsx` | 设置菜单参考实现，**不参与打包** |
 
 上游若更新了对应官方 client 文件，补丁可能对不上：以各脚本内的 marker / 失败报错为准，按新字节重写补丁，**不要删掉调用**。
@@ -88,8 +90,8 @@
 - 企业连接 `workdsh-enterprise-connection` 打进默认个人 bundle，设置里可以直接「连接企业」。身份插件和协作插件仍不在个人组合里激活；登录后才挂上。
 - 企业登录仍须成员认证；个人模式不得自动激活协作。
 - 个人默认可保留非企业的官方 bundle（例如 `@deepseek-ai/dsh-experimental-auto-review`），见 `apps/desktop/scripts/workdsh-package-boundary.mjs` 的 `PERSONAL_DEFAULT_EXTRA_BUNDLES`。
-- 社区默认插件钉在同文件的 `CATALOG_PACKAGES`（含 mineru、`dsh-drawai`、`dsh-remotion`、`dsh-comfyui`）。不要把 modsearch、video-lens、video-studio 加回默认列表。侧栏 Git/Diff 默认关闭，但开关保持可见，见 `apps/desktop/scripts/praxis-default-sidebar.patch.yml` 和 `scripts/praxis/patch-sidebar-toggles.mjs`。新任务默认标准模式见 `apps/desktop/scripts/praxis-default-preset.patch.yml`。
-- LibTV CLI 以内置技能 `libtv-skill` 交付（源：https://github.com/libtv-labs/libtv-skills），需配置 `LIBTV_ACCESS_KEY`；不预装旗舰套件其它物料。
+- 社区默认插件钉在同文件的 `CATALOG_PACKAGES`（含 mineru、`dsh-drawai`、`dsh-remotion`、`dsh-comfyui`、`dsh-playwright-browser`、`dsh-email`）。不要把 modsearch、video-lens、video-studio 加回默认列表。侧栏 Git/Diff 默认关闭，但开关保持可见，见 `apps/desktop/scripts/praxis-default-sidebar.patch.yml` 和 `scripts/praxis/patch-sidebar-toggles.mjs`。新任务默认标准模式见 `apps/desktop/scripts/praxis-default-preset.patch.yml`。
+- LibTV：内置技能 `libtv-skill`（源：https://github.com/libtv-labs/libtv-skills）仍保留；另在连接器管理默认预置并启用远程 MCP `libtv`（`https://mcp.liblib.tv/mcp`）。个人区与企业区共用该种子；未配置令牌时会显示连接异常，需填写访问令牌（或环境变量 `LIBTV_ACCESS_KEY`）后才能在会话中选择。不预装旗舰套件其它物料。
 - 默认本机端口为 `15200`（`apps/desktop/src/runtime-port.ts`）。仍记录官方默认 `3080` 的旧工作区会一次性迁到 `15200`，避免与官方 DSH 抢端口；其他已有端口记录仍保留。
 - IM 机器人默认隐藏侧栏入口（`integrations/dsh-im/sidebar-settings.json` → `hide`），入口仍在设置中。
 

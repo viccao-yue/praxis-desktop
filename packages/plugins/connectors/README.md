@@ -33,4 +33,4 @@ MCP client 是一种执行适配，复用官方 stdio/Streamable HTTP 生命周�
 
 页面及配置弹窗随 Harness 原生主题变化；文件类型图标与文档原文保留自身颜色。
 
-当前企业使用独立账号进程中的相同 ConnectorManager、官方 Tools、McpResources、Credentials 和存储。会话选择读写由必需的 SessionAccess 逐次校验；没有 Session 或归属不匹配时拒绝。`ConnectorManagerOptions.seedExample` 可关闭本地示例种子，默认个人行为保留。旧共享 Host 的 selector、Agent 谓词和运行名称映射装配已删除。独立进程及凭据/工具隔离的实际验收见[验收要求](../../../apps/web/docs/ACCEPTANCE.md)。
+当前企业使用独立账号进程中的相同 ConnectorManager、官方 Tools、McpResources、Credentials 和存储。会话选择读写由必需的 SessionAccess 逐次校验；没有 Session 或归属不匹配时拒绝。`ConnectorManagerOptions.seedExample` 可关闭本地示例种子，默认个人行为保留；开启时预置 `windows-mcp` 与远程 `libtv`（`https://mcp.liblib.tv/mcp`），个人区与企业区同一套种子。`libtv` 默认启用；未填写访问令牌时会显示连接异常并提示补令牌（也可启动前设置 `LIBTV_ACCESS_KEY`）。填写令牌并连接成功后，可在会话连接器选择器中选用。旧共享 Host 的 selector、Agent 谓词和运行名称映射装配已删除。独立进程及凭据/工具隔离的实际验收见[验收要求](../../../apps/web/docs/ACCEPTANCE.md)。

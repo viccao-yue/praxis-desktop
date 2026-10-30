@@ -61,6 +61,37 @@ export class ConnectorManager extends Service implements ConnectorManagementServ
         createdAt: now, updatedAt: now,
       });
     }
+    // Personal and enterprise Profiles share ConnectorManager; seed once per storage domain.
+    if (this.options.seedExample !== false && !this.definitions.get('libtv')) {
+      const now = new Date().toISOString();
+      const accessKey = process.env.LIBTV_ACCESS_KEY?.trim();
+      let authorizationCredentialRef: string | undefined;
+      if (accessKey) {
+        authorizationCredentialRef = this.credentialName('libtv');
+        await this.ctx.credentials.set(
+          refFor(authorizationCredentialRef),
+          /^(Bearer|Basic)\s/i.test(accessKey) ? accessKey : `Bearer ${accessKey}`,
+        );
+      }
+      await this.definitions.put('libtv', {
+        id: 'libtv',
+        title: 'LibTV',
+        description: 'LiblibAI 远程 MCP（生图/生视频与画布创作）。默认启用；请编辑并填写访问令牌后即可在会话中选择。',
+        serverName: 'libtv',
+        transport: 'streamable-http',
+        url: 'https://mcp.liblib.tv/mcp',
+        ...(authorizationCredentialRef ? { authorizationCredentialRef } : {}),
+        enabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else if (this.options.seedExample !== false) {
+      // Keep product default: LibTV stays enabled even on older seeds that shipped disabled.
+      const current = this.definitions.get('libtv');
+      if (current && !current.enabled) {
+        await this.definitions.put('libtv', { ...current, enabled: true, updatedAt: new Date().toISOString() });
+      }
+    }
     for (const [, definition] of this.table().entries()) {
       const blocked = this.windowsOnlyBlocked(definition);
       this.runtimes.set(definition.id, { state: definition.enabled && !blocked ? 'discovering' : 'disabled', ...(blocked ? { diagnostic: 'Windows MCP 只能在 Windows 上使用。' } : {}) });
@@ -162,6 +193,11 @@ export class ConnectorManager extends Service implements ConnectorManagementServ
   private async start(definition: ConnectorDefinition): Promise<void> {
     const runtime = this.runtime(definition.id); if (runtime.child) return;
     runtime.state = 'discovering'; runtime.diagnostic = undefined;
+    if (definition.id === 'libtv' && !definition.authorizationCredentialRef) {
+      runtime.state = 'offline';
+      runtime.diagnostic = '请先编辑并填写 LibTV 访问令牌，然后刷新状态。';
+      throw new Error('connector/authorization-missing');
+    }
     const authorization = definition.authorizationCredentialRef
       ? await this.ctx.credentials.resolve(refFor(definition.authorizationCredentialRef))
       : undefined;
@@ -170,7 +206,11 @@ export class ConnectorManager extends Service implements ConnectorManagementServ
       runtime.diagnostic = '连接授权已失效，请重新授权。';
       throw new Error('connector/authorization-missing');
     }
-    const headers: Record<string, string> = authorization ? { Authorization: authorization.value } : {};
+    const headers: Record<string, string> = {};
+    if (authorization) {
+      const value = authorization.value.trim();
+      headers.Authorization = /^(Bearer|Basic)\s/i.test(value) ? value : `Bearer ${value}`;
+    }
     const transportConfig = definition.transport === 'stdio'
       ? { serverName: definition.serverName, transport: 'stdio' as const, ...connectorProcess(definition), env: {} }
       : { serverName: definition.serverName, transport: 'streamable-http' as const, url: definition.url!, headers };

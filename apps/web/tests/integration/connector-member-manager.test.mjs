@@ -12,6 +12,41 @@ import { AuditJournal } from '../../../../packages/plugins/audit/dist/index.js';
 import { ConnectorManager } from '../../../../packages/plugins/connectors/dist/index.js';
 import { connectorProcess } from '../../../../packages/plugins/connectors/dist/manager.js';
 
+test('seeds LibTV remote MCP and Windows MCP for personal and enterprise storage domains', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'seed-libtv-'));
+  const ctx = new Context();
+  try {
+    ctx.provide('tools', { schemas: () => [] });
+    ctx.provide('mcpResources', {});
+    ctx.provide('credentials', {
+      async set() {},
+      async resolve() { return undefined; },
+      async describe() { return { configured: false, writable: true }; },
+    });
+    ctx.provide('agents', { list: () => [], get: () => undefined });
+    ctx.provide('workdshSessionAccess', { async inspect() { return {}; } });
+    await ctx.plugin(Storage);
+    await ctx.plugin(JsonStorage, { root });
+    await ctx.plugin(Domain, { backend: 'json' });
+    await ctx.plugin(ConnectorManager);
+    const rows = await ctx.workdshConnectors.list();
+    const libtv = rows.find(row => row.id === 'libtv');
+    const windows = rows.find(row => row.id === 'windows-mcp');
+    assert.ok(libtv, 'LibTV connector must be seeded');
+    assert.equal(libtv.serverName, 'libtv');
+    assert.equal(libtv.transport, 'streamable-http');
+    assert.equal(libtv.enabled, true);
+    assert.equal(libtv.state, 'offline');
+    assert.match(libtv.diagnostic ?? '', /访问令牌/);
+    assert.ok(windows, 'Windows MCP seed must remain');
+    const config = await ctx.workdshConnectors.config('libtv');
+    assert.equal(config.url, 'https://mcp.liblib.tv/mcp');
+  } finally {
+    await ctx.fiber.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('bundled example survives package relocation without rewriting independent MCP commands', async () => {
  const stale = {id:'workdsh-example',serverName:'workdsh-example',transport:'stdio',command:'/removed/old-package/node',args:['/removed/old-package/example-server.mjs']};
  const resolved=connectorProcess(stale);
