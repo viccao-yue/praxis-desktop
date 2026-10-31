@@ -112,10 +112,14 @@
 
 1. 合入上游（或更新 `upstream.json` 锁定的官方 DSH / 归档）。
 2. 跑 `corepack yarn check:desktop-dsh-alignment` 与 Desktop / Web 对齐门禁。
-3. 对照 **A–E** 扫一遍 diff：搜索 `WorkDSH`、`techflag/workdsh`、`kaiwu:`（旧协议）、`profiles/workdsh`。
-4. `corepack yarn workspace dsh-plugin-desktop prepare:workdsh-runtime`：确认 Praxis 五个 patch 都成功。
-5. 相关单测：`connection-*`、`verify-mac-*`、`verify-win-*`、`verify-electron-fuses`、`verify-profile-release`。
-6. 有条件再做一次打包安装，确认产物文件名是 `kaiwu*`，连接页 Logo 正常。
+3. **重算外框补丁锁**（对话+工作台并排接缝；运行时仍 fail-closed，不会在 prepare 时偷改 JSON）：
+   1. 先装好含新版 `@deepseek-ai/dsh-client-ui-conversation` 的 Profile（通常是 `prepare:workdsh-runtime` 产出目录，或临时 Profile）。
+   2. `node scripts/native-workbench-frame-patch.mjs --recompute <profile>`（Web 入口同参：`node apps/web/scripts/native-workbench-frame-patch.mjs --recompute <profile>`）。
+   3. 审阅 `scripts/native-workbench-frame-patch.json` 的 `version` / 两个 SHA；接缝 `replacements` 应仍是两处 `main.conversation` → `workdsh.workbench.frame`。确认后提交。
+4. 对照 **A–E** 扫一遍 diff：搜索 `WorkDSH`、`techflag/workdsh`、`kaiwu:`（旧协议）、`profiles/workdsh`。
+5. `corepack yarn workspace dsh-plugin-desktop prepare:workdsh-runtime`：确认 Praxis patch 与外框 `ensure`/`verify` 都成功。
+6. 相关单测：`native-workbench-frame-patch`、`connection-*`、`verify-mac-*`、`verify-win-*`、`verify-electron-fuses`、`verify-profile-release`。
+7. 有条件再做一次打包安装，确认产物文件名是 `kaiwu*`，连接页 Logo 正常。
 
 ---
 

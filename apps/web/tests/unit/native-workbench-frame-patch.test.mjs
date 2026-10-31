@@ -4,10 +4,18 @@ import {createRequire} from 'node:module';
 import {readFile,writeFile,mkdir,mkdtemp,rm,link,cp} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
-import {patchNativeWorkbenchFrame,ensureNativeWorkbenchFrame,verifyNativeWorkbenchFrame} from '../../scripts/native-workbench-frame-patch.mjs';
+import {
+  patchNativeWorkbenchFrame,
+  ensureNativeWorkbenchFrame,
+  verifyNativeWorkbenchFrame,
+  recomputeNativeWorkbenchFrameSpec,
+  recoverOriginalWorkbenchFrameSource,
+} from '../../scripts/native-workbench-frame-patch.mjs';
 const require=createRequire(new URL('../../../../packages/plugins/quality-analysis/package.json',import.meta.url));
 const manifestPath=require.resolve('@deepseek-ai/dsh-client-ui-conversation/package.json');
+const lockedSpecPath=new URL('../../../../scripts/native-workbench-frame-patch.json',import.meta.url);
 const source=await readFile(join(dirname(manifestPath),'lib/client.js'),'utf8');
+const locked=JSON.parse(await readFile(lockedSpecPath,'utf8'));
 test('authorized rc.2 seam preserves the native subtree and refuses unknown bytes',async()=>{
  assert.equal(JSON.parse(await readFile(manifestPath,'utf8')).version,'0.2.1-rc.2');
  const patched=patchNativeWorkbenchFrame(source);
@@ -60,4 +68,29 @@ test('packaged verification reads copied Resources bytes and refuses missing, ch
   await writeFile(join(copied,'package.json'),JSON.stringify({...manifest,version:'0.2.1-unknown'}));
   await assert.rejects(verifyNativeWorkbenchFrame(packaged),/version mismatch/);
  }finally{await rm(directory,{recursive:true,force:true});}
+});
+test('recompute on current rc.2 is idempotent with the committed lock and refuses unknown bytes',async()=>{
+  const profile=await mkdtemp(join(tmpdir(),'workdsh-frame-recompute-'));
+  const pkg=join(profile,'node_modules/@deepseek-ai/dsh-client-ui-conversation');
+  try{
+    await mkdir(join(pkg,'lib'),{recursive:true});await writeFile(join(profile,'package.json'),'{}');
+    const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
+    await writeFile(join(pkg,'package.json'),JSON.stringify(manifest));
+    await writeFile(join(pkg,'lib/client.js'),source);
+    assert.equal(recoverOriginalWorkbenchFrameSource(source),source);
+    const fromOriginal=await recomputeNativeWorkbenchFrameSpec(profile,{write:false});
+    assert.equal(fromOriginal.version,locked.version);
+    assert.equal(fromOriginal.originalSha256,locked.originalSha256);
+    assert.equal(fromOriginal.patchedSha256,locked.patchedSha256);
+    assert.deepEqual(fromOriginal.replacements,locked.replacements);
+    await writeFile(join(pkg,'lib/client.js'),patchNativeWorkbenchFrame(source));
+    const fromPatched=await recomputeNativeWorkbenchFrameSpec(profile,{write:false});
+    assert.equal(fromPatched.originalSha256,locked.originalSha256);
+    assert.equal(fromPatched.patchedSha256,locked.patchedSha256);
+    const broken=source.replace('return renderSlot("main.conversation", {});','return renderSlot("main.conversation.broken", {});');
+    await writeFile(join(pkg,'lib/client.js'),broken);
+    assert.throws(()=>recoverOriginalWorkbenchFrameSource(broken),/refusing to recompute|unsupported runtime bytes/);
+    await assert.rejects(recomputeNativeWorkbenchFrameSpec(profile,{write:false}),/refusing to recompute|unsupported runtime bytes|anchor mismatch/);
+    assert.equal(JSON.parse(await readFile(lockedSpecPath,'utf8')).patchedSha256,locked.patchedSha256,'dry-run recompute must not rewrite the committed lock');
+  }finally{await rm(profile,{recursive:true,force:true});}
 });
