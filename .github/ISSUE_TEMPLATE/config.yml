@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/techflag/workdsh/blob/main/docs/user-guide.md
     about: Read the usage guide before submitting / 提交前可查看使用指南
   - name: kaiwu Admin backend / 企业管理后台问题
-    url: https://github.com/techflag/workdsh-admin/issues
+    url: https://github.com/viccao-yue/praxis-enterprise/issues
     about: Backend accounts, permissions and model forwarding / 后台账号、权限与模型转发问题

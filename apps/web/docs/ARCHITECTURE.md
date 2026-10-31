@@ -16,7 +16,7 @@
 | profiles/shared | 官方完整客户端及共同功能来源 |
 | deploy/member-process | 企业 Web 账号进程、路由网关与唯一 Docker 配方 |
 | Desktop carrier | 窗口、设备凭据、本机进程、固定后台配置与安装生命周期 |
-| workdsh-admin | 独立企业治理后台、登录、组织授权、审计与内部模型 API |
+| praxis-enterprise（[viccao-yue/praxis-enterprise](https://github.com/viccao-yue/praxis-enterprise)） | 独立企业治理后台、登录、组织授权、审计与内部模型 API |
 
 个人 Web 使用完整官方客户端和个人身份，不依赖企业后台。企业 Web 在单 ECS 按账号按需运行独立官方 DSH 进程，同账号多个登录复用；运行安装只读共用，数据、配置、凭据与文件目录属于账号。Profile 不是账号或安全边界，目录隔离和实际资源授权分别检查。
 

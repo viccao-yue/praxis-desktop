@@ -10,7 +10,7 @@
 | scripts/install-preview.mjs | 安装完整官方个人Web及显式开发功能组合 |
 | enterprise/README.md | 单ECS按账号进程的实施与验收边界 |
 
-企业身份、协作和通知显式外置，不进入个人或Desktop默认包。共同功能复用包、服务和页面；企业运行只在 Desktop 本机；workdsh-admin 负责账号、组织、授权、协作数据与模型转发。
+企业身份、协作和通知显式外置，不进入个人或Desktop默认包。共同功能复用包、服务和页面；企业运行只在 Desktop 本机；[praxis-enterprise](https://github.com/viccao-yue/praxis-enterprise) 负责账号、组织、授权、协作数据与模型转发。
 
 Profile是插件/配置选择，不是账号；企业账号分别拥有数据、配置、凭据和文件，同账号多浏览器登录复用进程。旧共享多人Host清单与成员Context装配已退役，不作为另一条企业路线。
 

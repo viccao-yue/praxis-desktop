@@ -114,13 +114,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Checkout the backend integration contract
-        uses: actions/checkout@v6
-        with:
-          repository: techflag/workdsh-admin
-          ref: 2459c9b8f26cadad3565f0d6d5eadb8a1659b861
-          path: workdsh-admin
-          persist-credentials: false
+      # Enterprise admin lives in viccao-yue/praxis-enterprise. Web checks here only
+      # exercise Desktop/Web packages; they do not checkout or build that backend.
       - uses: actions/setup-node@v6
         with:
           node-version: 22.23.2
