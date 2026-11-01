@@ -1,6 +1,6 @@
 /** Verify the unsigned Windows x64 NSIS installer and unpacked executable. */
 
-import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DSH_VERSION } from './runtime-version.mjs'
@@ -111,6 +111,26 @@ export function verifyWindowsInstaller(
   }
   assertPortableExecutable(join(runtimeRoot, 'dependencies', 'python', 'python.exe'), 'bundled Python')
   assertPortableExecutable(join(runtimeRoot, 'dependencies', 'node', 'bin', 'node.exe'), 'bundled Node')
+  // First-run plugin install loads cordis YAML from the bundled Profile. Without a
+  // root js-yaml, Windows trees that lose nested pnpm links fail with ERR_MODULE_NOT_FOUND.
+  const profileYaml = join(
+    distDir,
+    'win-unpacked',
+    'resources',
+    'workdsh-runtime',
+    'profiles',
+    'kaiwu',
+    'node_modules',
+    'js-yaml',
+    'package.json',
+  )
+  if (!existsSync(profileYaml)) {
+    throw new Error(`Windows installer Profile is missing root js-yaml@4.3.2: ${profileYaml}`)
+  }
+  const yamlManifest = JSON.parse(readFileSync(profileYaml, 'utf8')) as { name?: unknown; version?: unknown }
+  if (yamlManifest.name !== 'js-yaml' || yamlManifest.version !== '4.3.2') {
+    throw new Error(`Windows installer Profile is missing root js-yaml@4.3.2: ${profileYaml}`)
+  }
   return { installerPath, applicationPath }
 }
 

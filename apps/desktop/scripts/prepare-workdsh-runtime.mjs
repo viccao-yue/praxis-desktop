@@ -35,7 +35,10 @@ if (!existsSync(manifestFile)) throw new Error('Pack built current kaiwu sources
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
 verifyProfileRelease(manifest, DSH_VERSION, RELEASE_PACKAGES)
 verifyReleaseArchives(manifest, release)
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v9', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+// layout v10: hoist js-yaml to the Profile root so Windows NSIS trees still
+// resolve cordis YAML loading when package realpath/junctions are flattened.
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v10', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+const PROFILE_ROOT_JS_YAML = '4.3.2'
 const markerPath = join(profile, '.workdsh-desktop-release.json')
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'))
 function run(command, args, options = {}) {
@@ -46,6 +49,13 @@ function run(command, args, options = {}) {
 function verifyInstalled() {
   const base = readJson(join(profile, 'package.json'))
   verifyDefaultProfile(base)
+  if (base.dependencies?.['js-yaml'] !== PROFILE_ROOT_JS_YAML) {
+    throw new Error(`Profile must declare js-yaml@${PROFILE_ROOT_JS_YAML} at the installation root for Windows-safe package resolution`)
+  }
+  const rootYaml = join(profile, 'node_modules', 'js-yaml', 'package.json')
+  if (!existsSync(rootYaml) || readJson(rootYaml).version !== PROFILE_ROOT_JS_YAML) {
+    throw new Error(`Profile root is missing js-yaml@${PROFILE_ROOT_JS_YAML}; cordis config loading fails on Windows when only nested .pnpm links exist`)
+  }
   for (const [name, version] of Object.entries(CATALOG_PACKAGES)) {
     const installed = readJson(join(profile, 'node_modules', name, 'package.json'))
     if (installed.version !== version || base.dependencies?.[name] !== version || !base.dsh?.profile?.bundles?.includes(name)) {
@@ -136,6 +146,9 @@ if (!prepared) {
       '@deepseek-ai/dsh-agent-preset-registry': DSH_VERSION, '@deepseek-ai/dsh-scope': DSH_VERSION,
       '@deepseek-ai/dsh-tool-workspace-dependencies': DSH_VERSION, '@deepseek-ai/dsh-skill-office': DSH_VERSION,
       '@deepseek-ai/cordis-plugin-group': '1.0.4', '@deepseek-ai/dsh-experimental-auto-review': DSH_VERSION,
+      // Keep a root js-yaml for Windows: NSIS may flatten pnpm junctions so nested
+      // @deepseek-ai/cordis-plugin-include can no longer walk into .pnpm/node_modules.
+      'js-yaml': PROFILE_ROOT_JS_YAML,
       ...manifest.requiredPeers, ...CATALOG_PACKAGES }
     const optionalDependencies = {}
     for (const item of manifest.packages) {

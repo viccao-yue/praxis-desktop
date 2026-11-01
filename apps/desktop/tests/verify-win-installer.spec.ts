@@ -35,6 +35,9 @@ function fixture(version = '2.0.0'): {
   writeFileSync(join(runtime, 'runtime.json'), JSON.stringify({ desktopVersion: DSH_VERSION, platform: 'win32', arch: 'x64', python: '3.12.14', node: '24.21.0' }))
   writeFileSync(join(runtime, 'dependencies', 'python', 'python.exe'), portableExecutable())
   writeFileSync(join(runtime, 'dependencies', 'node', 'bin', 'node.exe'), portableExecutable())
+  const profileYaml = join(unpacked, 'resources', 'workdsh-runtime', 'profiles', 'kaiwu', 'node_modules', 'js-yaml')
+  mkdirSync(profileYaml, { recursive: true })
+  writeFileSync(join(profileYaml, 'package.json'), JSON.stringify({ name: 'js-yaml', version: '4.3.2' }))
   return { root, installer, application }
 }
 
@@ -85,5 +88,13 @@ describe('Windows installer artifact verification', () => {
 
     expect(() => verifyWindowsInstaller({ desktopRoot: value.root, version: '2.0.0' }))
       .toThrow('python.exe')
+  })
+
+  it('rejects a Profile without root js-yaml for Windows package resolution', () => {
+    const value = fixture()
+    rmSync(join(value.root, 'dist', 'win-unpacked', 'resources', 'workdsh-runtime', 'profiles', 'kaiwu', 'node_modules', 'js-yaml'), { recursive: true, force: true })
+
+    expect(() => verifyWindowsInstaller({ desktopRoot: value.root, version: '2.0.0' }))
+      .toThrow('missing root js-yaml@4.3.2')
   })
 })
