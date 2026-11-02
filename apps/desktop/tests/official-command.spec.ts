@@ -13,7 +13,8 @@ const integrationTimeout = process.platform === 'win32' ? 20_000 : 5_000
 /** Windows may keep a handle on the temp home until the spawned CLI fully exits. */
 async function removeHome(home: string): Promise<void> {
   let last: unknown
-  for (let attempt = 0; attempt < 8; attempt++) {
+  const attempts = process.platform === 'win32' ? 40 : 8
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       rmSync(home, { recursive: true, force: true })
       return
@@ -21,7 +22,7 @@ async function removeHome(home: string): Promise<void> {
       last = error
       const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code) : ''
       if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ENOTEMPTY') throw error
-      await delay(50 * (attempt + 1))
+      await delay(process.platform === 'win32' ? 100 * (attempt + 1) : 50 * (attempt + 1))
     }
   }
   throw last
@@ -53,7 +54,20 @@ test('successful CLI completion does not report an installation failure', async 
 
 test('timeout terminates its owned process and preserves its specific reason', async () => {
   const options = fixture(`console.error('install started'); setInterval(() => {}, 1000)`)
-  await expect(runOfficialCommand({ ...options, timeoutMs: 150 })).rejects.toThrow('插件依赖更新超时')
+  let tracked: ChildProcess | undefined
+  await expect(runOfficialCommand({
+    ...options,
+    timeoutMs: 150,
+    // Keep the first child handle; runOfficialCommand later clears via onProcess(undefined).
+    onProcess: child => { if (child) tracked = child },
+  })).rejects.toThrow('插件依赖更新超时')
+  // Windows can still hold the spawn cwd briefly after taskkill; wait before afterEach rmdir.
+  if (tracked && tracked.exitCode === null && tracked.signalCode === null) {
+    await Promise.race([
+      new Promise<void>(resolve => tracked!.once('close', () => resolve())),
+      delay(process.platform === 'win32' ? 12_000 : 1_000),
+    ])
+  }
   expect(readFileSync(join(options.logDirectory, 'plugin-operation-failure.log'), 'utf8')).toContain('install started')
 }, integrationTimeout)
 

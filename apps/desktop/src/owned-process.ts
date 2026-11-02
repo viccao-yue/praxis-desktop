@@ -121,8 +121,26 @@ export function cleanOwnedProcessTree(child: ChildProcess): Promise<void> {
   return tracked
 }
 
+async function waitForOwnedClose(child: ChildProcess, timeoutMs: number): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('本机进程尚未停止')), timeoutMs)
+    child.once('close', () => { clearTimeout(timer); resolve() })
+  })
+}
+
 export async function stopOwnedProcess(child: ChildProcess): Promise<void> {
-  if (process.platform === 'win32') { await cleanOwnedProcessTree(child); return }
+  // Windows taskkill can reclaim the tree before Node emits close; wait for close
+  // so callers can safely delete the spawn cwd (otherwise rmdir hits EBUSY).
+  if (process.platform === 'win32') {
+    await cleanOwnedProcessTree(child)
+    try {
+      await waitForOwnedClose(child, 12_000)
+    } catch (error) {
+      if (child.pid && !processMissing(child.pid)) throw error
+    }
+    return
+  }
   if (child.exitCode !== null || child.signalCode !== null) { await cleanOwnedProcessTree(child); return }
   await new Promise<void>((resolve, reject) => {
     const force = setTimeout(() => { void cleanOwnedProcessTree(child).catch(reject) }, 8000)
