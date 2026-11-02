@@ -35,10 +35,18 @@ if (!existsSync(manifestFile)) throw new Error('Pack built current kaiwu sources
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
 verifyProfileRelease(manifest, DSH_VERSION, RELEASE_PACKAGES)
 verifyReleaseArchives(manifest, release)
-// layout v10: hoist js-yaml to the Profile root so Windows NSIS trees still
-// resolve cordis YAML loading when package realpath/junctions are flattened.
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v10', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+// layout v11: hoisted Profile node_modules. Windows NSIS often materializes pnpm
+// junctions as plain folders, so nested .pnpm siblings like js-yaml/cosmokit
+// disappear unless packages are reachable from the Profile root.
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v11', architecture, release: manifest, catalog: CATALOG_PACKAGES })
 const PROFILE_ROOT_JS_YAML = '4.3.2'
+const PROFILE_ROOT_COSMOKIT = '1.8.6'
+const WINDOWS_SAFE_ROOT_PACKAGES = [
+  ['js-yaml', PROFILE_ROOT_JS_YAML],
+  ['@deepseek-ai/cosmokit', PROFILE_ROOT_COSMOKIT],
+  ['@deepseek-ai/cordis', null],
+  ['@deepseek-ai/cordis-plugin-include', null],
+]
 const markerPath = join(profile, '.workdsh-desktop-release.json')
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'))
 function run(command, args, options = {}) {
@@ -46,16 +54,31 @@ function run(command, args, options = {}) {
   if (result.error) throw result.error
   if (result.status !== 0) throw new Error(`${command} exited with ${result.status}`)
 }
+function rootPackageManifest(name) {
+  const parts = name.startsWith('@') ? name.split('/') : [name]
+  return join(profile, 'node_modules', ...parts, 'package.json')
+}
+function verifyWindowsSafeRootPackages() {
+  for (const [name, version] of WINDOWS_SAFE_ROOT_PACKAGES) {
+    const manifestPath = rootPackageManifest(name)
+    if (!existsSync(manifestPath)) {
+      throw new Error(`Profile root is missing ${name}; Windows installers fail with ERR_MODULE_NOT_FOUND when only nested .pnpm links exist`)
+    }
+    if (version && readJson(manifestPath).version !== version) {
+      throw new Error(`Profile root ${name} must be ${version}`)
+    }
+  }
+}
 function verifyInstalled() {
   const base = readJson(join(profile, 'package.json'))
   verifyDefaultProfile(base)
   if (base.dependencies?.['js-yaml'] !== PROFILE_ROOT_JS_YAML) {
     throw new Error(`Profile must declare js-yaml@${PROFILE_ROOT_JS_YAML} at the installation root for Windows-safe package resolution`)
   }
-  const rootYaml = join(profile, 'node_modules', 'js-yaml', 'package.json')
-  if (!existsSync(rootYaml) || readJson(rootYaml).version !== PROFILE_ROOT_JS_YAML) {
-    throw new Error(`Profile root is missing js-yaml@${PROFILE_ROOT_JS_YAML}; cordis config loading fails on Windows when only nested .pnpm links exist`)
+  if (base.dependencies?.['@deepseek-ai/cosmokit'] !== PROFILE_ROOT_COSMOKIT) {
+    throw new Error(`Profile must declare @deepseek-ai/cosmokit@${PROFILE_ROOT_COSMOKIT} at the installation root for Windows-safe package resolution`)
   }
+  verifyWindowsSafeRootPackages()
   for (const [name, version] of Object.entries(CATALOG_PACKAGES)) {
     const installed = readJson(join(profile, 'node_modules', name, 'package.json'))
     if (installed.version !== version || base.dependencies?.[name] !== version || !base.dsh?.profile?.bundles?.includes(name)) {
@@ -146,9 +169,10 @@ if (!prepared) {
       '@deepseek-ai/dsh-agent-preset-registry': DSH_VERSION, '@deepseek-ai/dsh-scope': DSH_VERSION,
       '@deepseek-ai/dsh-tool-workspace-dependencies': DSH_VERSION, '@deepseek-ai/dsh-skill-office': DSH_VERSION,
       '@deepseek-ai/cordis-plugin-group': '1.0.4', '@deepseek-ai/dsh-experimental-auto-review': DSH_VERSION,
-      // Keep a root js-yaml for Windows: NSIS may flatten pnpm junctions so nested
-      // @deepseek-ai/cordis-plugin-include can no longer walk into .pnpm/node_modules.
+      // Windows-safe roots: NSIS may flatten pnpm junctions so nested importers
+      // can no longer see siblings under .pnpm/node_modules.
       'js-yaml': PROFILE_ROOT_JS_YAML,
+      '@deepseek-ai/cosmokit': PROFILE_ROOT_COSMOKIT,
       ...manifest.requiredPeers, ...CATALOG_PACKAGES }
     const optionalDependencies = {}
     for (const item of manifest.packages) {
@@ -162,6 +186,10 @@ if (!prepared) {
     const pkg = { name: 'workdsh-desktop-profile', private: true, type: 'module', packageManager: `pnpm@${OFFICIAL_PNPM_VERSION}`, dependencies, optionalDependencies,
       dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', ...PRODUCT_PACKAGES, ...Object.keys(CATALOG_PACKAGES), ...PERSONAL_DEFAULT_EXTRA_BUNDLES, 'workdsh-enterprise-connection'] } } }
     writeFileSync(join(profile, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
+    // Prefer a flat node_modules for the packaged Profile. Isolated pnpm links
+    // break after Windows NSIS copies, producing ERR_MODULE_NOT_FOUND for
+    // packages such as js-yaml and @deepseek-ai/cosmokit.
+    writeFileSync(join(profile, '.npmrc'), 'node-linker=hoisted\n')
     const overrides = Object.entries(manifest.runtimeOverrides ?? {}).map(([name, version]) => `  ${JSON.stringify(name)}: ${JSON.stringify(version)}`).join('\n')
     writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'autoInstallPeers: true\nstrictPeerDependencies: false\n' + runtimeArchitectureYaml(architecture) + 'overrides:\n' + overrides + '\n')
     run(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['--yes', `pnpm@${OFFICIAL_PNPM_VERSION}`, '--dir', profile, 'install', '--prod', '--ignore-scripts'], { shell: process.platform === 'win32' })

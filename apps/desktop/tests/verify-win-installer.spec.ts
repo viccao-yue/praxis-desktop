@@ -35,9 +35,13 @@ function fixture(version = '2.0.0'): {
   writeFileSync(join(runtime, 'runtime.json'), JSON.stringify({ desktopVersion: DSH_VERSION, platform: 'win32', arch: 'x64', python: '3.12.14', node: '24.21.0' }))
   writeFileSync(join(runtime, 'dependencies', 'python', 'python.exe'), portableExecutable())
   writeFileSync(join(runtime, 'dependencies', 'node', 'bin', 'node.exe'), portableExecutable())
-  const profileYaml = join(unpacked, 'resources', 'workdsh-runtime', 'profiles', 'kaiwu', 'node_modules', 'js-yaml')
+  const profileModules = join(unpacked, 'resources', 'workdsh-runtime', 'profiles', 'kaiwu', 'node_modules')
+  const profileYaml = join(profileModules, 'js-yaml')
+  const profileCosmokit = join(profileModules, '@deepseek-ai', 'cosmokit')
   mkdirSync(profileYaml, { recursive: true })
+  mkdirSync(profileCosmokit, { recursive: true })
   writeFileSync(join(profileYaml, 'package.json'), JSON.stringify({ name: 'js-yaml', version: '4.3.2' }))
+  writeFileSync(join(profileCosmokit, 'package.json'), JSON.stringify({ name: '@deepseek-ai/cosmokit', version: '1.8.6' }))
   return { root, installer, application }
 }
 
@@ -96,5 +100,13 @@ describe('Windows installer artifact verification', () => {
 
     expect(() => verifyWindowsInstaller({ desktopRoot: value.root, version: '2.0.0' }))
       .toThrow('missing root js-yaml@4.3.2')
+  })
+
+  it('rejects a Profile without root @deepseek-ai/cosmokit for Windows package resolution', () => {
+    const value = fixture()
+    rmSync(join(value.root, 'dist', 'win-unpacked', 'resources', 'workdsh-runtime', 'profiles', 'kaiwu', 'node_modules', '@deepseek-ai', 'cosmokit'), { recursive: true, force: true })
+
+    expect(() => verifyWindowsInstaller({ desktopRoot: value.root, version: '2.0.0' }))
+      .toThrow('missing root @deepseek-ai/cosmokit@1.8.6')
   })
 })
