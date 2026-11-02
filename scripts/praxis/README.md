@@ -79,7 +79,7 @@
 | `patch-remotion-native.mjs` | Remotion 页改用与其他页面相同的标题、按钮和页签，并从设置侧栏去掉 Remotion |
 | `patch-remotion-job.mjs` | 查询 Remotion 任务时使用 prepare/preview/render 返回的任务编号；工程编号不再报成「编号无效」 |
 | `patch-remotion-job-bar.mjs` | Remotion 运行记录收进任务状态行，结束后可以关闭，不再占工程列表上方一整行 |
-| `patch-email-native.mjs` | 邮件只留在设置里（去掉侧栏入口），并统一标题/页签/按钮/空状态；未安装时跳过 |
+| `patch-email-native.mjs` | 邮件只留在设置里（去掉 workbench/侧栏注册，个人区/企业区一致），并统一标题/页签/按钮/空状态；未安装时跳过 |
 | `patch-settings-nav-icons.mjs` | 设置侧栏里 IM机器人、视觉模型、ComfyUI、邮件各自使用不同图标；个人区和企业区共用这一份设置壳 |
 | `AccountMenu.tsx` | 设置菜单参考实现，**不参与打包** |
 

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from '../src/local-runtime.ts'
+import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, hideEmailWorkbench, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from '../src/local-runtime.ts'
 
 const roots: string[] = []
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }) })
@@ -58,6 +58,22 @@ it('carries bundled optional enterprise-connection into new Homes and schedules 
   expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dsh.profile.bundles).not.toContain('workdsh-provider-identity-enterprise')
 })
 
+it('strips dsh-email sidebar/workbench registration while keeping 设置', () => {
+  const { home } = fixture()
+  const client = join(home, 'profiles/kaiwu/node_modules/dsh-email/lib/client.js')
+  mkdirSync(join(home, 'profiles/kaiwu/node_modules/dsh-email/lib'), { recursive: true })
+  const sidebar = "ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id, order, label }, function WorkbenchIcon({ size }) { return h(Icon, { name: icon, size }); }));"
+  const workbench = "W.register(ctx,{id:'dsh-email.workbench',label:()=>dt('邮件','Email'),icon:'mail',component:EmailSettingsSection,order:54});"
+  writeFileSync(client, `${sidebar}\n${workbench}\nctx.slots.inject("settings.section", () => null);\n`)
+  hideEmailWorkbench(home)
+  const next = readFileSync(client, 'utf8')
+  expect(next).toContain('settings.section')
+  expect(next).not.toContain('dsh-email.workbench')
+  expect(next).not.toContain("ctx.slots.inject('sidebar.panellist'")
+  hideEmailWorkbench(home)
+  expect(readFileSync(client, 'utf8')).toBe(next)
+})
+
 it('isolates account/backend directories, device records and credential/skill environments', () => {
   const { root } = fixture()
   const actor = { id: 'A', organizationId: 'org', organizationName: 'Company', email: 'a@test', displayName: 'A', role: 'MEMBER' as const, mustChangePassword: false }
@@ -89,6 +105,8 @@ it('delegates startup and plugin installation to official runCli using one packa
   expect(JSON.parse(readFileSync(join(home, '.workdsh-host', 'package.json'), 'utf8')).type).toBe('module')
   expect(host).toContain("process.argv[2] === 'plugin'")
   expect(host).toContain('await runCli({ manageDesktopProfile: true, packageManager })')
+  expect(host).toContain('hideEmailWorkbench()')
+  expect(host).toContain('dsh-email.workbench')
   expect(host).toContain('runProfile({ environment: loadLayeredEnv')
   expect(host).toContain('resolvedProfile: { profile, installAnchor }')
   expect(host).toContain(JSON.stringify(join(source, 'profile-installation.json')))

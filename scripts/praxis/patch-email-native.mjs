@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * dsh-email ships a sidebar workbench entry plus standalone chrome (package
- * name in settings nav, underlined tabs, dashed empty states). Praxis keeps
- * mail only under 设置, and uses the shared label / button / tab tokens.
- * dsh-email is optional (user-installed); missing package is a no-op.
+ * dsh-email ships a sidebar workbench entry plus standalone chrome. Praxis keeps
+ * mail only under 设置 (personal and enterprise), and restyles tabs/buttons to
+ * shared tokens. dsh-email is optional; missing package is a no-op.
  *
  * Usage:
  *   node scripts/praxis/patch-email-native.mjs <profile-root>
@@ -20,6 +19,7 @@ const TITLE_ZH_NEXT = '"nav.title": "邮件"'
 const TITLE_EN = '"nav.title": "Email (dsh-email)"'
 const TITLE_EN_NEXT = '"nav.title": "Email"'
 const SIDEBAR = "ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id, order, label }, function WorkbenchIcon({ size }) { return h(Icon, { name: icon, size }); }));"
+const WORKBENCH = "W.register(ctx,{id:'dsh-email.workbench',label:()=>dt('邮件','Email'),icon:'mail',component:EmailSettingsSection,order:54});"
 
 const OVERRIDE = `
 ${MARKER}
@@ -67,27 +67,34 @@ export function patchEmailNativeSource(source) {
 
     const closeBracket = next.indexOf(CSS_JOIN)
     if (closeBracket < 0) throw new Error('dsh-email settings CSS array is missing; refuse to leave dashed empty states')
-    // Prior CSS entries already end with a trailing comma.
     const insertion = `\n            "${FORM_OVERRIDE}"\n        `
     next = next.slice(0, closeBracket) + insertion + next.slice(closeBracket)
     changed = true
   }
 
-  // Repair an early insertion that added a spare comma before the form override.
   const spare = ',\n        ,\n            "/* praxis-email-native */'
   if (next.includes(spare)) {
     next = next.replace(spare, ',\n            "/* praxis-email-native */')
     changed = true
   }
 
+  // Mail stays under 设置 only. Strip both the shared workbench helper's
+  // panellist inject and the dsh-email.workbench registration — Host still
+  // surfaces a sidebar item from workbench main alone.
   if (next.includes(SIDEBAR)) {
-    next = next.replace(SIDEBAR, '')
+    next = next.replaceAll(SIDEBAR, '')
     changed = true
   } else if (next.includes("ctx.slots.inject('sidebar.panellist'") || next.includes('ctx.slots.inject("sidebar.panellist"')) {
     throw new Error('dsh-email sidebar entry changed; refuse to leave 邮件 in the sidebar')
   }
+  if (next.includes(WORKBENCH)) {
+    next = next.replaceAll(WORKBENCH, '')
+    changed = true
+  } else if (next.includes("dsh-email.workbench")) {
+    throw new Error('dsh-email workbench registration changed; refuse to leave 邮件 in the sidebar')
+  }
 
-  if (!next.includes(MARKER) || next.includes(TITLE_ZH) || next.includes(TITLE_EN) || next.includes("ctx.slots.inject('sidebar.panellist'") || next.includes('ctx.slots.inject("sidebar.panellist"')) {
+  if (!next.includes(MARKER) || next.includes(TITLE_ZH) || next.includes(TITLE_EN) || next.includes("ctx.slots.inject('sidebar.panellist'") || next.includes('ctx.slots.inject("sidebar.panellist"') || next.includes('dsh-email.workbench')) {
     throw new Error('dsh-email native page patch did not apply')
   }
   if (!next.includes('settings.section')) {
@@ -106,10 +113,10 @@ export function patchEmailNativeAt(profile) {
 
 const invoked = process.argv[1]?.endsWith('patch-email-native.mjs')
 if (invoked && process.argv.includes('--self-test')) {
-  const sample = `function register(ctx, { id, label, icon, component, inject, order = 50 }) {\n    ctx.slots.inject('main', () => null);\n    ${SIDEBAR}\n  }\n${SHEET}\n.dshw{color:red}\n\`;\nconst CSS = [\n            ".dshe-oauth-actions{gap:8px}",\n        ${CSS_JOIN}\n${TITLE_ZH}\n${TITLE_EN}\nctx.slots.inject("settings.section", () => null);\n`
+  const sample = `function register(ctx, { id, label, icon, component, inject, order = 50 }) {\n    ctx.slots.inject('main', () => null);\n    ${SIDEBAR}\n  }\n${SHEET}\n.dshw{color:red}\n\`;\nconst CSS = [\n            ".dshe-oauth-actions{gap:8px}",\n        ${CSS_JOIN}\n${TITLE_ZH}\n${TITLE_EN}\n${WORKBENCH}\nctx.slots.inject("settings.section", () => null);\n`
   const once = patchEmailNativeSource(sample)
-  if (!once.changed || !once.source.includes(MARKER) || once.source.includes(TITLE_ZH) || once.source.includes(TITLE_EN) || !once.source.includes(TITLE_ZH_NEXT) || !once.source.includes('.dshe-acc-empty') || once.source.includes("ctx.slots.inject('sidebar.panellist'") || !once.source.includes('settings.section')) {
-    throw new Error('self-test did not restyle email, hide the sidebar entry, or keep 设置')
+  if (!once.changed || !once.source.includes(MARKER) || once.source.includes(TITLE_ZH) || once.source.includes(TITLE_EN) || !once.source.includes(TITLE_ZH_NEXT) || !once.source.includes('.dshe-acc-empty') || once.source.includes("ctx.slots.inject('sidebar.panellist'") || once.source.includes('dsh-email.workbench') || !once.source.includes('settings.section')) {
+    throw new Error('self-test did not restyle email, hide the sidebar/workbench entry, or keep 设置')
   }
   const twice = patchEmailNativeSource(once.source)
   if (!twice.already || twice.source !== once.source) throw new Error('self-test was not idempotent')

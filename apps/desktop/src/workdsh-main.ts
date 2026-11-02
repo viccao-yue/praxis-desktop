@@ -17,7 +17,7 @@ import { connectionEntryHtml, enterpriseLoginHtml, connectionLoadingHtml } from 
 import { connectionPartition, enterpriseConnection, isReturnToEntryUrl, type DesktopConnection } from './connection-mode.ts'
 import { parseDeploymentConfig } from './deployment-config.ts'
 import { EnterpriseLogin, startEnterpriseAuthority, type Authority } from './enterprise-auth.ts'
-import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from './local-runtime.ts'
+import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, hideEmailWorkbench, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from './local-runtime.ts'
 import { manageCommand } from './command-management.ts'
 import { createRuntimeOutputRedactor, redactRuntimeOutput, runtimeFailureDetail, runtimeFailureLog } from './runtime-diagnostics.ts'
 import { cleanOwnedProcessTree, stopOwnedProcess, trackOwnedProcess } from './owned-process.ts'
@@ -210,6 +210,8 @@ async function prepareProfile(home: string): Promise<{ profile: string, existing
     const entry = window
     if (entry && !entry.isDestroyed()) await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml('plugins')))
     await officialCommand(home, ['plugin', '--profile', PROFILE_NAME, 'install'])
+    // npm reinstall restores dsh-email's sidebar workbench; strip again after install.
+    hideEmailWorkbench(home)
     markProfileUpdated(source, result.profile)
     if (entry && !entry.isDestroyed()) await entry.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(connectionLoadingHtml(enterprise ? 'enterprise' : 'personal')))
   }
@@ -226,6 +228,8 @@ function rememberCommandSpace(home?: string): void {
 async function startRuntime(home: string, connection: DesktopConnection, patches: string[] = [], existingHome = false): Promise<void> {
   rememberCommandSpace(home)
   if (quitRequested) throw new Error('启动已取消')
+  // Survive plugin reinstall / market updates that restore the mail sidebar entry.
+  hideEmailWorkbench(home)
   const executable = bundledNodeExecutable()
   if (!existsSync(executable)) throw new Error(`Bundled Node.js runtime is missing: ${executable}`)
   const basePatch = join(bundledProfileDirectory(), 'cordis.patch.yml')

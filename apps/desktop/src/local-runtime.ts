@@ -41,6 +41,30 @@ function hideImSidebar(home: string): void {
   writeJson(join(sidebar, 'sidebar-settings.json'), { version: 1, mode: 'hide' })
 }
 
+const EMAIL_SIDEBAR = "ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id, order, label }, function WorkbenchIcon({ size }) { return h(Icon, { name: icon, size }); }));"
+const EMAIL_WORKBENCH = "W.register(ctx,{id:'dsh-email.workbench',label:()=>dt('邮件','Email'),icon:'mail',component:EmailSettingsSection,order:54});"
+
+/**
+ * Mail stays under 设置 only. `plugin install` reinstalls dsh-email from npm and
+ * would restore the sidebar workbench; re-strip it on every Home prepare/start.
+ */
+export function hideEmailWorkbench(home: string): void {
+  const client = join(home, 'profiles', 'kaiwu', 'node_modules', 'dsh-email', 'lib', 'client.js')
+  if (!existsSync(client)) return
+  const source = readFileSync(client, 'utf8')
+  let next = source
+  if (next.includes(EMAIL_SIDEBAR)) next = next.replaceAll(EMAIL_SIDEBAR, '')
+  if (next.includes(EMAIL_WORKBENCH)) next = next.replaceAll(EMAIL_WORKBENCH, '')
+  if (next === source) return
+  if (!next.includes('settings.section')
+    || next.includes('dsh-email.workbench')
+    || next.includes("ctx.slots.inject('sidebar.panellist'")
+    || next.includes('ctx.slots.inject("sidebar.panellist"')) {
+    throw new Error('邮件侧栏隐藏未完整应用，拒绝留下侧栏入口')
+  }
+  writeFileSync(client, next, { mode: 0o600 })
+}
+
 /** Fresh personal Profiles hide better-sidebar Git / Diff tabs; settings can re-enable. */
 const PERSONAL_SIDEBAR_DEFAULTS = `- id: better-sidebar
   config:
@@ -147,6 +171,8 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
   syncBundledCompatibility(source, target, digest)
   // Settings already lists IM机器人; do not also pin it in the personal sidebar.
   hideImSidebar(home)
+  // Settings owns 邮件; plugin reinstall must not leave a sidebar workbench.
+  hideEmailWorkbench(home)
   // Caller installs changed dependencies with the pinned official package manager before marking success.
   if (changed) writeJson(state, { digest: previous?.digest ?? digest, base: previous?.base ?? base, pendingInstallation: true })
   else writeJson(state, { digest, base })
@@ -173,6 +199,7 @@ export function enterpriseSpace(userData: string, backend: string, actor: Enterp
   const home = join(root, 'dsh')
   // Settings already contains IM机器人. Enterprise login does not add a second sidebar entry.
   hideImSidebar(home)
+  hideEmailWorkbench(home)
   return { root, home, deviceId }
 }
 
@@ -212,7 +239,12 @@ export function officialHostLauncher(source: string, home: string, executable: s
   writeJson(join(home, '.workdsh-host', 'package.json'), { type: 'module' })
   packageManager = cachedPackageManager(home, packageManager)
   const packageManagerLiteral = `{ command: ${JSON.stringify(executable)}, args: [${JSON.stringify(packageManager)}] }`
-  writeFileSync(launcher, `import { runCli } from ${JSON.stringify(pathToFileURL(cli).href)};\nimport { runProfile } from ${JSON.stringify(pathToFileURL(boot).href)};\nimport { loadProfileDirectory, loadLayeredEnv, reportSkippedBundles } from ${JSON.stringify(pathToFileURL(appBoot).href)};\nconst installAnchor = ${JSON.stringify(anchor)};\nconst profile = loadProfileDirectory('dsh', ${JSON.stringify(profile)}, installAnchor);\nconst packageManager = ${packageManagerLiteral};\nif (process.argv[2] === 'plugin') await runCli({ manageDesktopProfile: true, packageManager });\nelse { reportSkippedBundles('dsh', profile);\nawait runProfile({ environment: loadLayeredEnv('dsh'), profile: 'kaiwu', resolvedProfile: { profile, installAnchor }, patchFiles: ${JSON.stringify(patches)}, args: process.argv.slice(2), packageManager }); }\n`, { mode: 0o600 })
+  // plugin install / profile sync re-hardlinks pristine dsh-email; strip the
+  // sidebar workbench in this launcher so every Host start and every market
+  // plugin command keeps 邮件 under 设置 only (Electron may also strip earlier).
+  const emailClient = join(profile, 'node_modules', 'dsh-email', 'lib', 'client.js')
+  const hideEmail = `function hideEmailWorkbench(){const client=${JSON.stringify(emailClient)};if(!existsSync(client))return;const source=readFileSync(client,'utf8');let next=source;const sidebar=${JSON.stringify(EMAIL_SIDEBAR)};const workbench=${JSON.stringify(EMAIL_WORKBENCH)};if(next.includes(sidebar))next=next.replaceAll(sidebar,'');if(next.includes(workbench))next=next.replaceAll(workbench,'');if(next===source)return;if(!next.includes('settings.section')||next.includes('dsh-email.workbench')||next.includes("ctx.slots.inject('sidebar.panellist'")||next.includes('ctx.slots.inject("sidebar.panellist"'))throw new Error('邮件侧栏隐藏未完整应用');writeFileSync(client,next);}`
+  writeFileSync(launcher, `import { existsSync, readFileSync, writeFileSync } from 'node:fs';\nimport { runCli } from ${JSON.stringify(pathToFileURL(cli).href)};\nimport { runProfile } from ${JSON.stringify(pathToFileURL(boot).href)};\nimport { loadProfileDirectory, loadLayeredEnv, reportSkippedBundles } from ${JSON.stringify(pathToFileURL(appBoot).href)};\nconst installAnchor = ${JSON.stringify(anchor)};\nconst profile = loadProfileDirectory('dsh', ${JSON.stringify(profile)}, installAnchor);\nconst packageManager = ${packageManagerLiteral};\n${hideEmail}\nif (process.argv[2] === 'plugin') { await runCli({ manageDesktopProfile: true, packageManager }); hideEmailWorkbench(); }\nelse { hideEmailWorkbench(); reportSkippedBundles('dsh', profile);\nawait runProfile({ environment: loadLayeredEnv('dsh'), profile: 'kaiwu', resolvedProfile: { profile, installAnchor }, patchFiles: ${JSON.stringify(patches)}, args: process.argv.slice(2), packageManager }); }\n`, { mode: 0o600 })
   return launcher
 }
 
