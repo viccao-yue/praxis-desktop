@@ -36,14 +36,18 @@ const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
 verifyProfileRelease(manifest, DSH_VERSION, RELEASE_PACKAGES)
 verifyReleaseArchives(manifest, release)
 // layout v11: hoisted Profile node_modules. Windows NSIS often materializes pnpm
-// junctions as plain folders, so nested .pnpm siblings like js-yaml/cosmokit
-// disappear unless packages are reachable from the Profile root.
+// junctions as plain folders, so nested .pnpm siblings like js-yaml/cosmokit/
+// resolve.exports disappear unless packages are reachable from the Profile root.
 const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v11', architecture, release: manifest, catalog: CATALOG_PACKAGES })
 const PROFILE_ROOT_JS_YAML = '4.3.2'
 const PROFILE_ROOT_COSMOKIT = '1.8.6'
+// dsh-app-boot imports resolve.exports; first-run `plugin install` fails on Windows
+// with ERR_MODULE_NOT_FOUND when it only lives under nested .pnpm.
+const PROFILE_ROOT_RESOLVE_EXPORTS = '2.0.4'
 const WINDOWS_SAFE_ROOT_PACKAGES = [
   ['js-yaml', PROFILE_ROOT_JS_YAML],
   ['@deepseek-ai/cosmokit', PROFILE_ROOT_COSMOKIT],
+  ['resolve.exports', PROFILE_ROOT_RESOLVE_EXPORTS],
   ['@deepseek-ai/cordis', null],
   ['@deepseek-ai/cordis-plugin-include', null],
 ]
@@ -77,6 +81,9 @@ function verifyInstalled() {
   }
   if (base.dependencies?.['@deepseek-ai/cosmokit'] !== PROFILE_ROOT_COSMOKIT) {
     throw new Error(`Profile must declare @deepseek-ai/cosmokit@${PROFILE_ROOT_COSMOKIT} at the installation root for Windows-safe package resolution`)
+  }
+  if (base.dependencies?.['resolve.exports'] !== PROFILE_ROOT_RESOLVE_EXPORTS) {
+    throw new Error(`Profile must declare resolve.exports@${PROFILE_ROOT_RESOLVE_EXPORTS} at the installation root for Windows-safe package resolution`)
   }
   verifyWindowsSafeRootPackages()
   for (const [name, version] of Object.entries(CATALOG_PACKAGES)) {
@@ -117,7 +124,7 @@ function verifyInstalled() {
   if (config.error || config.status !== 0) throw new Error('Official runtime composition failed: ' + (config.error ?? config.stderr))
   verifyOfficialWebPackages(manifest, profile, config.stdout)
   verifyDefaultComposition(config.stdout)
-  for (const id of ['skillhub', 'dsh-market', 'playwright-browser']) {
+  for (const id of ['skillhub', 'dsh-market', 'playwright-browser', 'dsh-asr-voice']) {
     if (!config.stdout.includes('id: ' + id)) throw new Error('Missing community catalog integration: ' + id)
   }
   // Praxis: hide contact/signin; unsigned click opens settings.
@@ -173,6 +180,7 @@ if (!prepared) {
       // can no longer see siblings under .pnpm/node_modules.
       'js-yaml': PROFILE_ROOT_JS_YAML,
       '@deepseek-ai/cosmokit': PROFILE_ROOT_COSMOKIT,
+      'resolve.exports': PROFILE_ROOT_RESOLVE_EXPORTS,
       ...manifest.requiredPeers, ...CATALOG_PACKAGES }
     const optionalDependencies = {}
     for (const item of manifest.packages) {
@@ -188,7 +196,7 @@ if (!prepared) {
     writeFileSync(join(profile, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
     // Prefer a flat node_modules for the packaged Profile. Isolated pnpm links
     // break after Windows NSIS copies, producing ERR_MODULE_NOT_FOUND for
-    // packages such as js-yaml and @deepseek-ai/cosmokit.
+    // packages such as js-yaml, @deepseek-ai/cosmokit and resolve.exports.
     writeFileSync(join(profile, '.npmrc'), 'node-linker=hoisted\n')
     const overrides = Object.entries(manifest.runtimeOverrides ?? {}).map(([name, version]) => `  ${JSON.stringify(name)}: ${JSON.stringify(version)}`).join('\n')
     writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'autoInstallPeers: true\nstrictPeerDependencies: false\n' + runtimeArchitectureYaml(architecture) + 'overrides:\n' + overrides + '\n')

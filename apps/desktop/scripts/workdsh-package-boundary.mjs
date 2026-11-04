@@ -47,6 +47,10 @@ export const CATALOG_PACKAGES = Object.freeze({
   // Praxis: 设置 → 邮件（个人区与企业区同一默认 Profile；侧栏入口由 patch-email-native 去掉）。
   // https://www.npmjs.com/package/dsh-email — verified on DSH 0.2.1-rc.2
   'dsh-email': '0.19.0',
+  // Praxis: conversation mic → 语音输入（浏览器 Web Speech / 云端 ASR）。
+  // https://www.npmjs.com/package/@bittersmilezzz/dsh-asr-voice
+  // https://github.com/bitterSmilezzz/dsh-asr-voice — peer range ^0.2.0-rc.2
+  '@bittersmilezzz/dsh-asr-voice': '0.4.7',
 })
 
 export const RELEASE_PACKAGES = Object.freeze([

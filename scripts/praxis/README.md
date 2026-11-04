@@ -90,7 +90,7 @@
 - 企业连接 `workdsh-enterprise-connection` 打进默认个人 bundle，设置里可以直接「连接企业」。身份插件和协作插件仍不在个人组合里激活；登录后才挂上。
 - 企业登录仍须成员认证；个人模式不得自动激活协作。
 - 个人默认可保留非企业的官方 bundle（例如 `@deepseek-ai/dsh-experimental-auto-review`），见 `apps/desktop/scripts/workdsh-package-boundary.mjs` 的 `PERSONAL_DEFAULT_EXTRA_BUNDLES`。
-- 社区默认插件钉在同文件的 `CATALOG_PACKAGES`（含 mineru、`dsh-drawai`、`dsh-remotion`、`dsh-comfyui`、`dsh-playwright-browser`、`dsh-email`）。不要把 modsearch、video-lens、video-studio 加回默认列表。侧栏 Git/Diff 默认关闭，但开关保持可见，见 `apps/desktop/scripts/praxis-default-sidebar.patch.yml` 和 `scripts/praxis/patch-sidebar-toggles.mjs`。新任务默认标准模式见 `apps/desktop/scripts/praxis-default-preset.patch.yml`。
+- 社区默认插件钉在同文件的 `CATALOG_PACKAGES`（含 mineru、`dsh-drawai`、`dsh-remotion`、`dsh-comfyui`、`dsh-playwright-browser`、`dsh-email`、`@bittersmilezzz/dsh-asr-voice`）。不要把 modsearch、video-lens、video-studio、`dsh-voice-mode` 加回默认列表。侧栏 Git/Diff 默认关闭，但开关保持可见，见 `apps/desktop/scripts/praxis-default-sidebar.patch.yml` 和 `scripts/praxis/patch-sidebar-toggles.mjs`。新任务默认标准模式见 `apps/desktop/scripts/praxis-default-preset.patch.yml`。
 - LibTV：内置技能 `libtv-skill`（源：https://github.com/libtv-labs/libtv-skills）仍保留；另在连接器管理默认预置并启用远程 MCP `libtv`（`https://mcp.liblib.tv/mcp`）。个人区与企业区共用该种子；未配置令牌时会显示连接异常，需填写访问令牌（或环境变量 `LIBTV_ACCESS_KEY`）后才能在会话中选择。不预装旗舰套件其它物料。
 - 默认本机端口为 `15200`（`apps/desktop/src/runtime-port.ts`）。仍记录官方默认 `3080` 的旧工作区会一次性迁到 `15200`，避免与官方 DSH 抢端口；其他已有端口记录仍保留。
 - IM 机器人默认隐藏侧栏入口（`integrations/dsh-im/sidebar-settings.json` → `hide`），入口仍在设置中。
