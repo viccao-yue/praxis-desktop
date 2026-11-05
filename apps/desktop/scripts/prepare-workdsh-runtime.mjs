@@ -39,7 +39,7 @@ verifyReleaseArchives(manifest, release)
 // layout v12: hoisted Profile node_modules. Windows NSIS often materializes pnpm
 // junctions as plain folders, so nested .pnpm siblings like js-yaml/cosmokit/
 // resolve.exports/commander disappear unless packages are reachable from the Profile root.
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v12', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v13', architecture, release: manifest, catalog: CATALOG_PACKAGES })
 const PROFILE_ROOT_JS_YAML = '4.3.2'
 const PROFILE_ROOT_COSMOKIT = '1.8.6'
 // dsh-app-boot imports resolve.exports; first-run `plugin install` fails on Windows
@@ -47,11 +47,15 @@ const PROFILE_ROOT_COSMOKIT = '1.8.6'
 const PROFILE_ROOT_RESOLVE_EXPORTS = '2.0.4'
 // @deepseek-ai/dsh/lib/bin.js imports commander; same Windows first-run failure mode.
 const PROFILE_ROOT_COMMANDER = '15.0.0'
+// profile-boot imports dsh-cmdline; after NSIS copies break pnpm siblings it must
+// resolve from the Profile root the same way as the packages above.
+const PROFILE_ROOT_DSH_CMDLINE = DSH_VERSION
 const WINDOWS_SAFE_ROOT_PACKAGES = [
   ['js-yaml', PROFILE_ROOT_JS_YAML],
   ['@deepseek-ai/cosmokit', PROFILE_ROOT_COSMOKIT],
   ['resolve.exports', PROFILE_ROOT_RESOLVE_EXPORTS],
   ['commander', PROFILE_ROOT_COMMANDER],
+  ['@deepseek-ai/dsh-cmdline', PROFILE_ROOT_DSH_CMDLINE],
   ['@deepseek-ai/cordis', null],
   ['@deepseek-ai/cordis-plugin-include', null],
 ]
@@ -91,6 +95,9 @@ function verifyInstalled() {
   }
   if (base.dependencies?.commander !== PROFILE_ROOT_COMMANDER) {
     throw new Error(`Profile must declare commander@${PROFILE_ROOT_COMMANDER} at the installation root for Windows-safe package resolution`)
+  }
+  if (base.dependencies?.['@deepseek-ai/dsh-cmdline'] !== PROFILE_ROOT_DSH_CMDLINE) {
+    throw new Error(`Profile must declare @deepseek-ai/dsh-cmdline@${PROFILE_ROOT_DSH_CMDLINE} at the installation root for Windows-safe package resolution`)
   }
   verifyWindowsSafeRootPackages()
   for (const [name, version] of Object.entries(CATALOG_PACKAGES)) {
@@ -191,6 +198,7 @@ if (!prepared) {
       '@deepseek-ai/cosmokit': PROFILE_ROOT_COSMOKIT,
       'resolve.exports': PROFILE_ROOT_RESOLVE_EXPORTS,
       commander: PROFILE_ROOT_COMMANDER,
+      '@deepseek-ai/dsh-cmdline': PROFILE_ROOT_DSH_CMDLINE,
       ...manifest.requiredPeers, ...CATALOG_PACKAGES }
     const optionalDependencies = {}
     for (const item of manifest.packages) {
@@ -206,7 +214,7 @@ if (!prepared) {
     writeFileSync(join(profile, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
     // Prefer a flat node_modules for the packaged Profile. Isolated pnpm links
     // break after Windows NSIS copies, producing ERR_MODULE_NOT_FOUND for
-    // packages such as js-yaml, @deepseek-ai/cosmokit, resolve.exports and commander.
+    // packages such as js-yaml, cosmokit, resolve.exports, commander and dsh-cmdline.
     writeFileSync(join(profile, '.npmrc'), 'node-linker=hoisted\n')
     const overrides = Object.entries(manifest.runtimeOverrides ?? {}).map(([name, version]) => `  ${JSON.stringify(name)}: ${JSON.stringify(version)}`).join('\n')
     writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'autoInstallPeers: true\nstrictPeerDependencies: false\n' + runtimeArchitectureYaml(architecture) + 'overrides:\n' + overrides + '\n')
