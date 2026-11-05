@@ -39,12 +39,15 @@ function fixture(version = '2.0.0'): {
   const profileYaml = join(profileModules, 'js-yaml')
   const profileCosmokit = join(profileModules, '@deepseek-ai', 'cosmokit')
   const profileResolveExports = join(profileModules, 'resolve.exports')
+  const profileCommander = join(profileModules, 'commander')
   mkdirSync(profileYaml, { recursive: true })
   mkdirSync(profileCosmokit, { recursive: true })
   mkdirSync(profileResolveExports, { recursive: true })
+  mkdirSync(profileCommander, { recursive: true })
   writeFileSync(join(profileYaml, 'package.json'), JSON.stringify({ name: 'js-yaml', version: '4.3.2' }))
   writeFileSync(join(profileCosmokit, 'package.json'), JSON.stringify({ name: '@deepseek-ai/cosmokit', version: '1.8.6' }))
   writeFileSync(join(profileResolveExports, 'package.json'), JSON.stringify({ name: 'resolve.exports', version: '2.0.4' }))
+  writeFileSync(join(profileCommander, 'package.json'), JSON.stringify({ name: 'commander', version: '15.0.0' }))
   return { root, installer, application }
 }
 
@@ -119,5 +122,13 @@ describe('Windows installer artifact verification', () => {
 
     expect(() => verifyWindowsInstaller({ desktopRoot: value.root, version: '2.0.0' }))
       .toThrow('missing root resolve.exports@2.0.4')
+  })
+
+  it('rejects a Profile without root commander for Windows package resolution', () => {
+    const value = fixture()
+    rmSync(join(value.root, 'dist', 'win-unpacked', 'resources', 'workdsh-runtime', 'profiles', 'kaiwu', 'node_modules', 'commander'), { recursive: true, force: true })
+
+    expect(() => verifyWindowsInstaller({ desktopRoot: value.root, version: '2.0.0' }))
+      .toThrow('missing root commander@15.0.0')
   })
 })

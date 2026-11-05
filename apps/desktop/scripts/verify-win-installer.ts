@@ -111,14 +111,15 @@ export function verifyWindowsInstaller(
   }
   assertPortableExecutable(join(runtimeRoot, 'dependencies', 'python', 'python.exe'), 'bundled Python')
   assertPortableExecutable(join(runtimeRoot, 'dependencies', 'node', 'bin', 'node.exe'), 'bundled Node')
-  // First-run plugin install loads dsh-app-boot from the bundled Profile. Without
+  // First-run plugin install loads dsh / dsh-app-boot from the bundled Profile. Without
   // root copies of these packages, Windows trees that lose nested pnpm links fail
-  // with ERR_MODULE_NOT_FOUND (js-yaml, cosmokit, resolve.exports).
+  // with ERR_MODULE_NOT_FOUND (js-yaml, cosmokit, resolve.exports, commander).
   const profileModules = join(distDir, 'win-unpacked', 'resources', 'workdsh-runtime', 'profiles', 'kaiwu', 'node_modules')
   for (const [name, version, ...parts] of [
     ['js-yaml', '4.3.2', 'js-yaml'] as const,
     ['@deepseek-ai/cosmokit', '1.8.6', '@deepseek-ai', 'cosmokit'] as const,
     ['resolve.exports', '2.0.4', 'resolve.exports'] as const,
+    ['commander', '15.0.0', 'commander'] as const,
   ]) {
     const manifestPath = join(profileModules, ...parts, 'package.json')
     if (!existsSync(manifestPath)) {
