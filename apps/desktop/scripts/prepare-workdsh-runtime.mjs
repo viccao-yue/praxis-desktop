@@ -21,6 +21,7 @@ import { patchRemotionNativeAt } from '../../../scripts/praxis/patch-remotion-na
 import { patchRemotionJobAt } from '../../../scripts/praxis/patch-remotion-job.mjs'
 import { patchRemotionJobBarAt } from '../../../scripts/praxis/patch-remotion-job-bar.mjs'
 import { patchEmailNativeAt } from '../../../scripts/praxis/patch-email-native.mjs'
+import { patchDshMailZhAt } from '../../../scripts/praxis/patch-dsh-mail-zh.mjs'
 import { patchSettingsNavIconsAt } from '../../../scripts/praxis/patch-settings-nav-icons.mjs'
 const architecture = runtimeArchitecture()
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -124,7 +125,7 @@ function verifyInstalled() {
   if (config.error || config.status !== 0) throw new Error('Official runtime composition failed: ' + (config.error ?? config.stderr))
   verifyOfficialWebPackages(manifest, profile, config.stdout)
   verifyDefaultComposition(config.stdout)
-  for (const id of ['skillhub', 'dsh-market', 'playwright-browser', 'dsh-asr-voice']) {
+  for (const id of ['skillhub', 'dsh-market', 'playwright-browser', 'dsh-asr-voice', 'web-search-free']) {
     if (!config.stdout.includes('id: ' + id)) throw new Error('Missing community catalog integration: ' + id)
   }
   // Praxis: hide contact/signin; unsigned click opens settings.
@@ -150,6 +151,8 @@ function verifyInstalled() {
   patchRemotionJobBarAt(profile)
   // Praxis: optional dsh-email uses the same title, button and tab treatment (no-op if absent).
   patchEmailNativeAt(profile)
+  // Praxis: optional @lucagiftzek/dsh-mail Chinese overlay + button contrast (no-op if absent).
+  patchDshMailZhAt(profile)
   // Praxis: IM机器人 / 视觉模型 / ComfyUI / 邮件 each get their own settings-nav glyph.
   patchSettingsNavIconsAt(profile)
   for (const id of ['workdsh-installation-probe', 'workdsh-identity-local', 'workdsh-access', 'workdsh-audit', 'workdsh-workbenches']) {

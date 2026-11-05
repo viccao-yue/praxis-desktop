@@ -44,13 +44,15 @@ export const CATALOG_PACKAGES = Object.freeze({
   // Native browser_* tools for personal and enterprise Profiles.
   // https://www.npmjs.com/package/dsh-playwright-browser — verified on DSH 0.2.1-rc.2
   'dsh-playwright-browser': '0.1.3',
-  // Praxis: 设置 → 邮件（个人区与企业区同一默认 Profile；侧栏入口由 patch-email-native 去掉）。
-  // https://www.npmjs.com/package/dsh-email — verified on DSH 0.2.1-rc.2
-  'dsh-email': '0.19.0',
   // Praxis: conversation mic → 语音输入（浏览器 Web Speech / 云端 ASR）。
   // https://www.npmjs.com/package/@bittersmilezzz/dsh-asr-voice
   // https://github.com/bitterSmilezzz/dsh-asr-voice — peer range ^0.2.0-rc.2
   '@bittersmilezzz/dsh-asr-voice': '0.4.7',
+  // Praxis: free web search tools (personal + enterprise same Profile).
+  // https://www.npmjs.com/package/dsh-free-search — engines.dsh >=0.1.7-rc.1
+  'dsh-free-search': '0.9.31',
+  // Do NOT default-install dsh-email (settings paper-plane 邮件). Keep
+  // @lucagiftzek/dsh-mail as an explicit user install (settings gear 邮件).
 })
 
 export const RELEASE_PACKAGES = Object.freeze([
