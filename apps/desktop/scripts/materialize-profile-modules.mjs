@@ -95,22 +95,17 @@ function virtualSiblings(real) {
 
 /** Keep a dependency that is not the hoisted root copy next to its importer.
  * Flattening every package onto one version makes `signal-exit` 4 replace the
- * function export that `proper-lockfile` loads from 3.x. */
-function embedPrivateDependencies(real, destination, hoistedReal, stack) {
-  if (stack.has(real)) return
-  stack.add(real)
-  try {
-    for (const [relativeName, source] of virtualSiblings(real)) {
-      let depReal
-      try { depReal = realpathSync(source) } catch { continue }
-      if (!existsSync(join(depReal, 'package.json'))) continue
-      if (hoistedReal.get(relativeName) === depReal) continue
-      const depDestination = join(destination, 'node_modules', relativeName)
-      if (!existsSync(join(depDestination, 'package.json'))) copyPackageBody(depReal, depDestination)
-      embedPrivateDependencies(depReal, depDestination, hoistedReal, stack)
-    }
-  } finally {
-    stack.delete(real)
+ * function export that `proper-lockfile` loads from 3.x.
+ * Only one nesting level: walking every private tree recursively copies the
+ * whole store under each importer and OOMs electron-builder / times out CI. */
+function embedPrivateDependencies(real, destination, hoistedReal) {
+  for (const [relativeName, source] of virtualSiblings(real)) {
+    let depReal
+    try { depReal = realpathSync(source) } catch { continue }
+    if (!existsSync(join(depReal, 'package.json'))) continue
+    if (hoistedReal.get(relativeName) === depReal) continue
+    const depDestination = join(destination, 'node_modules', relativeName)
+    if (!existsSync(join(depDestination, 'package.json'))) copyPackageBody(depReal, depDestination)
   }
 }
 
@@ -155,7 +150,7 @@ export function materializeMissingRootPackages(modulesDir) {
     const destination = join(modulesDir, relativeName)
     if (pinned) removeLink(destination)
     copyPackageBody(real, destination)
-    embedPrivateDependencies(real, destination, hoistedReal, new Set())
+    embedPrivateDependencies(real, destination, hoistedReal)
   }
   const execa = join(modulesDir, 'execa', 'package.json')
   if (!existsSync(execa)) throw new Error('Windows-safe Profile root is missing execa')
