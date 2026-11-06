@@ -55,6 +55,62 @@ function removeLink(path) {
   rmSync(path, { recursive: false, force: true })
 }
 
+function copyPackageBody(real, destination) {
+  mkdirSync(dirname(destination), { recursive: true })
+  cpSync(real, destination, {
+    recursive: true,
+    dereference: true,
+    filter: source => source === real || basename(source) !== 'node_modules',
+  })
+}
+
+function packageRelative(real) {
+  const parent = dirname(real)
+  if (basename(parent).startsWith('@') && basename(dirname(parent)) === 'node_modules') return join(basename(parent), basename(real))
+  return basename(real)
+}
+
+/** Packages pnpm placed beside this one inside a single `.pnpm` virtual store. */
+function virtualSiblings(real) {
+  const own = packageRelative(real)
+  const store = own === basename(real) ? dirname(real) : dirname(dirname(real))
+  if (basename(store) !== 'node_modules') return []
+  const found = []
+  let names
+  try { names = readdirSync(store) } catch { return found }
+  for (const name of names) {
+    if (name === '.bin' || name.startsWith('.')) continue
+    const source = join(store, name)
+    let scoped = false
+    try { scoped = name.startsWith('@') && !lstatSync(source).isSymbolicLink() } catch { continue }
+    if (scoped) {
+      for (const child of readdirSync(source)) {
+        const relativeName = join(name, child)
+        if (relativeName !== own) found.push([relativeName, join(source, child)])
+      }
+    } else if (name !== own) found.push([name, source])
+  }
+  return found
+}
+
+/** Keep a dependency that is not the hoisted root copy next to its importer.
+ * Flattening every package onto one version makes `signal-exit` 4 replace the
+ * function export that `proper-lockfile` loads from 3.x. */
+function embedPrivateDependencies(real, destination, hoistedReal, seen) {
+  const visit = `${real}\0${destination}`
+  if (seen.has(visit)) return
+  seen.add(visit)
+  for (const [relativeName, source] of virtualSiblings(real)) {
+    let depReal
+    try { depReal = realpathSync(source) } catch { continue }
+    if (!existsSync(join(depReal, 'package.json'))) continue
+    if (hoistedReal.get(relativeName) === depReal) continue
+    const depDestination = join(destination, 'node_modules', relativeName)
+    if (!existsSync(join(depDestination, 'package.json'))) copyPackageBody(depReal, depDestination)
+    embedPrivateDependencies(depReal, depDestination, hoistedReal, seen)
+  }
+}
+
 function consider(chosen, modulesDir, relativeName, source, linkCache) {
   const pinned = linkedReal(modulesDir, relativeName, linkCache)
   if (pinned) {
@@ -90,15 +146,14 @@ export function materializeMissingRootPackages(modulesDir) {
       }
     }
   }
+  const hoistedReal = new Map()
+  for (const [relativeName, entry] of chosen) if (entry.pinned) hoistedReal.set(relativeName, entry.real)
+  const embedded = new Set()
   for (const [relativeName, { real, pinned }] of chosen) {
     const destination = join(modulesDir, relativeName)
     if (pinned) removeLink(destination)
-    mkdirSync(dirname(destination), { recursive: true })
-    cpSync(real, destination, {
-      recursive: true,
-      dereference: true,
-      filter: source => source === real || basename(source) !== 'node_modules',
-    })
+    copyPackageBody(real, destination)
+    embedPrivateDependencies(real, destination, hoistedReal, embedded)
   }
   const execa = join(modulesDir, 'execa', 'package.json')
   if (!existsSync(execa)) throw new Error('Windows-safe Profile root is missing execa')
