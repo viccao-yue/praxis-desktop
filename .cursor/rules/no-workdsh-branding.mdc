@@ -1,0 +1,20 @@
+---
+description: Never surface WorkDSH branding in user-facing product text
+alwaysApply: true
+---
+
+# No WorkDSH branding
+
+User-facing copy must never present WorkDSH / workDSH / workdsh as a product name, upstream attribution, or marketing reference.
+
+## Do not write
+
+- Release-note footers such as “开源上游参考：github.com/techflag/workdsh”
+- Download / upgrade bullets that name `workdsh-enterprise-connection` or other `workdsh-*` package ids when a plain product phrase works
+- README, website, issue, or release prose that points users at techflag/workdsh as the product origin
+
+## Prefer
+
+- Product name: 开物 / 开物Praxis / kaiwu
+- Enterprise line: “企业连接另提供独立归档”
+- Keep internal package ids, paths, and code symbols unchanged when they are required for builds; do not echo them in user-visible release notes or marketing text

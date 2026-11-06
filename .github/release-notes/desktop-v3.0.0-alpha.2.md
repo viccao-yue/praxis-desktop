@@ -28,9 +28,9 @@ macOS Apple Silicon 与 Windows 使用官方 `rc.2` 归档。上游尚未提供 
 
 ## 发行文件
 
-- Windows x64：`WorkDSH-3.0.0-alpha.2-x64-Setup.exe` 安装程序。
-- macOS Apple Silicon arm64 / Intel x64：对应架构的 `WorkDSH-3.0.0-alpha.2-<arch>.dmg`。本次 DMG 未签名。
-- 企业连接：`workdsh-enterprise-connection-0.1.0-alpha.2.tgz`，另附 ZIP、兼容版本清单及校验信息；在“插件 → 添加插件”中安装 TGZ。
+- Windows x64：`kaiwu-3.0.0-alpha.2-x64-Setup.exe` 安装程序。
+- macOS Apple Silicon arm64 / Intel x64：对应架构的 `kaiwu-3.0.0-alpha.2-<arch>.dmg`。本次 DMG 未签名。
+- 企业连接另提供独立归档（含 ZIP、兼容版本清单及校验信息）；在“插件 → 添加插件”中安装。
 - 附件名称含构建平台前缀，所有文件的 SHA-256 见 `SHA256SUMS`。
 
 ## 验证范围
@@ -42,5 +42,3 @@ macOS Apple Silicon 与 Windows 使用官方 `rc.2` 归档。上游尚未提供 
 当前为 Alpha 版本，升级前请备份本地配置和数据。SkillHub、dsh-market 为独立第三方来源，目录内容并非全部预装或经 kaiwu 审核，安装前请核对许可、依赖与版本兼容性。
 
 已有工作区若安装了仅适配旧 DSH 的第三方插件，官方插件管理器会阻止升级并恢复原依赖。例如 `sigmapad-plugin@0.1.0-alpha.180` 要求 DSH `0.2.0-rc.2`，与本次底座不兼容；需由插件方提供适配版本，再通过官方插件管理器升级。kaiwu 不会自动删除或禁用这类插件，也不会绕过版本检查。干净新安装不包含此第三方插件。
-
-开源地址：[github.com/techflag/workdsh](https://github.com/techflag/workdsh)
