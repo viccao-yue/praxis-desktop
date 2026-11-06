@@ -8,7 +8,7 @@ import type { KvTable } from '@deepseek-ai/dsh-storage-domain';
 import type { SessionCreateRequest, SessionCreateValue } from '@deepseek-ai/dsh-api-session-controller';
 import { expertPresetDir, readExpertPreset, registerExpertPreset, releaseExpertPresets, resolveAgentsHome, retainExpertPresetLifetime } from '../runtime/preset-compiler.js';
 import { withDefaultAvatar } from '../domain/default-avatars.js';
-import { LEAD_EXPERT_ID } from '../domain/templates.js';
+import { DEFAULT_TEMPLATE_ORDER } from '../domain/templates.js';
 import {
   EXPERT_LIMITS,
   ExpertsError,
@@ -419,7 +419,8 @@ export class ExpertsManager extends Service implements ExpertsService {
             const revision = ref ? this.revisionsTable().get(keys.revision(ref.expertId, ref.revisionId)) : undefined;
             const desired = withDefaultAvatar(template.id, template.definition);
             const incomplete = (desired.skillRequirements.length > 0) && (revision?.dependencyLock.length !== desired.skillRequirements.length);
-            if (!revision || incomplete || (desired.avatarRef && revision.definition.avatarRef !== desired.avatarRef)) healthy = false;
+            const definitionStale = Boolean(revision) && revision!.definitionDigest !== definitionDigest(normalizeDefinition(desired));
+            if (!revision || incomplete || definitionStale || (desired.avatarRef && revision.definition.avatarRef !== desired.avatarRef)) healthy = false;
           } catch (error) {
             healthy = false;
             await this.audit(actor, 'experts.publish', template.id, 'failed', errorCode(error, 'experts/seed-skill-repair-failed'));
@@ -473,9 +474,10 @@ export class ExpertsManager extends Service implements ExpertsService {
     const readiness = await this.computeReadiness(current, actor, signal);
     const incomplete = desired.skillRequirements.length > 0 && current.dependencyLock.length !== desired.skillRequirements.length;
     const avatarStale = Boolean(desired.avatarRef) && current.definition.avatarRef !== desired.avatarRef;
-    if (readiness === 'ready' && !incomplete && !avatarStale) return;
+    const definitionStale = current.definitionDigest !== definitionDigest(desired);
+    if (readiness === 'ready' && !incomplete && !avatarStale && !definitionStale) return;
     const frozen = await this.freezeDefaultSkills(expertId, desired, signal);
-    if (desired.skillRequirements.length > 0 && frozen.dependencyLock.length === 0 && !avatarStale) return;
+    if (desired.skillRequirements.length > 0 && frozen.dependencyLock.length === 0 && !avatarStale && !definitionStale) return;
     const effectiveLock = frozen.dependencyLock.length ? frozen.dependencyLock : current.dependencyLock;
     const effectiveLockDigest = frozen.dependencyLock.length ? frozen.lockDigest : current.dependencyLockDigest;
     const basePresetId = await this.resolveBasePreset(signal);
@@ -839,10 +841,15 @@ export class ExpertsManager extends Service implements ExpertsService {
   }
 
   private sortRows(rows: { expert: Expert; preference?: ExpertPreference }[]): void {
+    const defaultOrder = new Map(DEFAULT_TEMPLATE_ORDER.map((id, index) => [id, index]));
     rows.sort((left, right) => {
-      const leftLead = left.expert.id === LEAD_EXPERT_ID ? 0 : 1;
-      const rightLead = right.expert.id === LEAD_EXPERT_ID ? 0 : 1;
-      if (leftLead !== rightLead) return leftLead - rightLead;
+      const leftDefault = defaultOrder.get(left.expert.id);
+      const rightDefault = defaultOrder.get(right.expert.id);
+      if (leftDefault !== undefined || rightDefault !== undefined) {
+        if (leftDefault === undefined) return 1;
+        if (rightDefault === undefined) return -1;
+        if (leftDefault !== rightDefault) return leftDefault - rightDefault;
+      }
       const leftPin = left.preference?.pinned ? 1 : 0;
       const rightPin = right.preference?.pinned ? 1 : 0;
       if (leftPin !== rightPin) return rightPin - leftPin;

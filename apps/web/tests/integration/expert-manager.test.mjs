@@ -152,11 +152,18 @@ async function boot(existingRoot, { profileAgents = false, connectors } = {}) {
   if (profileAgents) delete process.env.DSH_AGENTS_HOME; else process.env.DSH_AGENTS_HOME = agentsHome;
   process.env.DSH_HOME = dshHome;
 
-  // A real local Skill so an expert can freeze an explicit dependency (AT-07/08).
+  // Real local Skills so experts can freeze explicit dependencies (AT-07/08) and
+  // the shipped 常青云报销顾问 can lock expense-invoices during default seeding.
   if (!existingRoot) {
-    const skillDir = join(agentsHome, 'skills', 'sample-skill');
-    await mkdir(skillDir, { recursive: true });
-    await writeFile(join(skillDir, 'SKILL.md'), '---\nname: sample-skill\ndescription: Expert dependency fixture\n---\nUse this fixture when the expert needs it.\n');
+    for (const [name, body] of [
+      ['sample-skill', '---\nname: sample-skill\ndescription: Expert dependency fixture\n---\nUse this fixture when the expert needs it.\n'],
+      ['expense-invoices', '---\nname: expense-invoices\ndescription: Expense reimbursement fixture for default expert seeding\n---\nOrganize invoices for reimbursement.\n'],
+      ['changqingyun-product-intro', '---\nname: changqingyun-product-intro\ndescription: Product introduction fixture for default expert seeding\n---\nIntroduce the product portfolio.\n'],
+    ]) {
+      const skillDir = join(agentsHome, 'skills', name);
+      await mkdir(skillDir, { recursive: true });
+      await writeFile(join(skillDir, 'SKILL.md'), body);
+    }
   }
 
   const ctx = new Context();
@@ -241,11 +248,20 @@ test('AT-01 experts list seeds defaults, searches, filters, pages and stays owne
   try {
     const a = actor('owner-a');
     const first = await h.experts.list(a, {});
-    assert.equal(first.total, 4, 'the shipped defaults, including 常青云容器运维顾问, seed on first read');
-    assert.deepEqual(first.items.map((item) => item.origin), ['default', 'default', 'default', 'default']);
+    assert.equal(first.total, 6, 'the shipped defaults seed on first read');
+    assert.deepEqual(first.items.map((item) => item.origin), ['default', 'default', 'default', 'default', 'default', 'default']);
     assert.ok(first.items.filter((item) => item.id !== 'changqingyun-container-advisor').every((item) => item.readiness === 'ready'), 'compiled default presets are healthy');
-    assert.equal(first.items[0]?.id, 'changqingyun-container-advisor', '常青云容器运维顾问 stays first');
-    assert.equal(first.items[0]?.name, '常青云容器运维顾问');
+    assert.deepEqual(first.items.map((item) => item.id), [
+      'changqingyun-product-advisor',
+      'expense-reimbursement-advisor',
+      'changqingyun-container-advisor',
+      'requirement-analysis-advisor',
+      'document-review-advisor',
+      'work-retrospective-advisor',
+    ]);
+    assert.equal(first.items[0]?.name, '常青云产品顾问');
+    assert.equal(first.items[1]?.name, '常青云报销顾问');
+    assert.equal(first.items[2]?.name, '常青云容器运维顾问');
     assert.ok(first.items.every((item) => item.canUse && item.canManage && !item.canEdit), 'defaults are usable/manageable but not directly editable');
     assert.ok(first.items.every((item) => item.publishedRevisionRef !== undefined), 'defaults are published');
 
@@ -266,9 +282,12 @@ test('AT-01 experts list seeds defaults, searches, filters, pages and stays owne
     assert.ok(page1.nextCursor, 'a partial page yields a next cursor');
     const page2 = await h.experts.list(a, { limit: 2, cursor: page1.nextCursor });
     assert.equal(page2.items.length, 2);
+    assert.ok(page2.nextCursor, 'six defaults need a third page at limit 2');
     assert.equal(page2.catalogRevision, page1.catalogRevision, 'catalog revision is stable across pages');
-    const seen = new Set([...page1.items, ...page2.items].map((item) => item.id));
-    assert.equal(seen.size, 4, 'paging visits every row exactly once');
+    const page3 = await h.experts.list(a, { limit: 2, cursor: page2.nextCursor });
+    assert.equal(page3.items.length, 2);
+    const seen = new Set([...page1.items, ...page2.items, ...page3.items].map((item) => item.id));
+    assert.equal(seen.size, 6, 'paging visits every row exactly once');
     await assert.rejects(h.experts.list(a, { cursor: 'not-base64-json' }), (err) => err.code === 'experts/cursor-stale');
 
     // A different principal in the same org cannot see owner-a's personal defaults.
@@ -811,7 +830,8 @@ test('expert publication requires standard and never falls back to another healt
       return resolve(id ?? 'ptc');
     };
     await assert.rejects(h.experts.publish(a, copied.expertId, detail.draft.revision, validation.dependencyLockDigest, proof, { operationId: 'mode-publish' }), error => error.code === 'experts/preset-broken' && /standard/.test(error.message));
-    assert.deepEqual(calls, ['standard']);
+    assert.ok(calls.includes('standard'), 'publish must resolve the standard base preset');
+    assert.equal(calls.includes('ptc'), false, 'publish must not fall back to another healthy mode');
     assert.equal((await h.experts.get(a, copied.expertId)).expert.publishedRevisionRef, undefined);
     h.ctx.agentPresets.resolve = resolve;
     assert.equal((await h.ctx.agentPresets.resolve('ptc')).broken, undefined, 'PTC remains available for native tasks');

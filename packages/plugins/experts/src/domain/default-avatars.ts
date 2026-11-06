@@ -9,6 +9,8 @@ const DEFAULT_AVATAR_FILES = {
   'requirement-analysis-advisor': 'requirement.png',
   'document-review-advisor': 'document.png',
   'work-retrospective-advisor': 'retrospective.png',
+  'expense-reimbursement-advisor': 'expense.png',
+  'changqingyun-product-advisor': 'product-intro.png',
 } as const;
 
 const avatarsRoot = join(dirname(fileURLToPath(import.meta.url)), '../../resources/avatars');
