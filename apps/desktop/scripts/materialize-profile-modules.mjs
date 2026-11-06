@@ -93,19 +93,25 @@ function virtualSiblings(real) {
   return found
 }
 
-/** Keep a dependency that is not the hoisted root copy next to its importer.
+/** Keep a dependency that is not the Profile root copy next to its importer.
  * Flattening every package onto one version makes `signal-exit` 4 replace the
  * function export that `proper-lockfile` loads from 3.x.
- * Only one nesting level: walking every private tree recursively copies the
- * whole store under each importer and OOMs electron-builder / times out CI. */
-function embedPrivateDependencies(real, destination, hoistedReal) {
+ * A package placed at the root is not copied again underneath an importer:
+ * that shadow has no `node_modules` of its own and resolves the wrong version.
+ * A genuinely different version is copied with one more level of its own
+ * mismatched dependencies. Deeper copies rebuild the store and exhaust CI. */
+function embedPrivateDependencies(real, destination, rootReal, depth) {
+  if (depth <= 0) return
   for (const [relativeName, source] of virtualSiblings(real)) {
     let depReal
     try { depReal = realpathSync(source) } catch { continue }
     if (!existsSync(join(depReal, 'package.json'))) continue
-    if (hoistedReal.get(relativeName) === depReal) continue
+    if (rootReal.get(relativeName) === depReal) continue
     const depDestination = join(destination, 'node_modules', relativeName)
-    if (!existsSync(join(depDestination, 'package.json'))) copyPackageBody(depReal, depDestination)
+    if (!existsSync(join(depDestination, 'package.json'))) {
+      copyPackageBody(depReal, depDestination)
+      embedPrivateDependencies(depReal, depDestination, rootReal, depth - 1)
+    }
   }
 }
 
@@ -144,13 +150,13 @@ export function materializeMissingRootPackages(modulesDir) {
       }
     }
   }
-  const hoistedReal = new Map()
-  for (const [relativeName, entry] of chosen) if (entry.pinned) hoistedReal.set(relativeName, entry.real)
+  const rootReal = new Map()
+  for (const [relativeName, entry] of chosen) rootReal.set(relativeName, entry.real)
   for (const [relativeName, { real, pinned }] of chosen) {
     const destination = join(modulesDir, relativeName)
     if (pinned) removeLink(destination)
     copyPackageBody(real, destination)
-    embedPrivateDependencies(real, destination, hoistedReal)
+    embedPrivateDependencies(real, destination, rootReal, 2)
   }
   const execa = join(modulesDir, 'execa', 'package.json')
   if (!existsSync(execa)) throw new Error('Windows-safe Profile root is missing execa')
