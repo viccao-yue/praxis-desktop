@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync,
 import { dirname, join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { materializeMissingRootPackages } from './materialize-profile-modules.mjs'
 import { DSH_VERSION, OFFICIAL_PNPM_VERSION } from './runtime-version.mjs'
 import { CATALOG_PACKAGES, ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
 import { composeProfilePatches, verifyDefaultComposition, verifyDefaultProfile, verifyInstalledDshVersions, verifyOfficialWebPackages, verifyPackageDshReferences, verifyProfileRelease, verifyReleaseArchives } from './verify-profile-release.mjs'
@@ -39,7 +40,7 @@ verifyReleaseArchives(manifest, release)
 // layout v12: hoisted Profile node_modules. Windows NSIS often materializes pnpm
 // junctions as plain folders, so nested .pnpm siblings like js-yaml/cosmokit/
 // resolve.exports/commander disappear unless packages are reachable from the Profile root.
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v13', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v14', architecture, release: manifest, catalog: CATALOG_PACKAGES })
 const PROFILE_ROOT_JS_YAML = '4.3.2'
 const PROFILE_ROOT_COSMOKIT = '1.8.6'
 // dsh-app-boot imports resolve.exports; first-run `plugin install` fails on Windows
@@ -270,6 +271,8 @@ if (!prepared) {
     writeFileSync(join(profile, 'cordis.yml'), '[]\n')
     writeFileSync(join(profile, 'cordis.patch.yml'), composeProfilePatches(patches))
     verifyInstalled()
+    // Root junctions survive NSIS. Packages that exist only as .pnpm siblings do not.
+    materializeMissingRootPackages(join(profile, 'node_modules'))
     writeFileSync(markerPath, marker + '\n')
     rmSync(backup, { recursive: true, force: true })
   } catch (error) {
