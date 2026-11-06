@@ -40,7 +40,7 @@ verifyReleaseArchives(manifest, release)
 // layout v12: hoisted Profile node_modules. Windows NSIS often materializes pnpm
 // junctions as plain folders, so nested .pnpm siblings like js-yaml/cosmokit/
 // resolve.exports/commander disappear unless packages are reachable from the Profile root.
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v14', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v15', architecture, release: manifest, catalog: CATALOG_PACKAGES })
 const PROFILE_ROOT_JS_YAML = '4.3.2'
 const PROFILE_ROOT_COSMOKIT = '1.8.6'
 // dsh-app-boot imports resolve.exports; first-run `plugin install` fails on Windows
