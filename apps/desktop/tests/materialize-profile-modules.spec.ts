@@ -90,4 +90,21 @@ describe('materializeMissingRootPackages', () => {
     expect(JSON.parse(readFileSync(nested, 'utf8')).version).toBe('3.0.7')
     expect(readFileSync(join(signal3, 'index.js'), 'utf8')).toContain('onExit')
   })
+
+  it('stops when two private packages depend on each other', () => {
+    const dir = modules()
+    const left = join(dir, '.pnpm', 'left@1.0.0', 'node_modules', 'left')
+    const right = join(dir, '.pnpm', 'right@1.0.0', 'node_modules', 'right')
+    const execa = join(dir, '.pnpm', 'execa@10.2.1', 'node_modules', 'execa')
+    for (const directory of [left, right, execa]) mkdirSync(directory, { recursive: true })
+    writeFileSync(join(left, 'package.json'), JSON.stringify({ name: 'left', version: '1.0.0' }))
+    writeFileSync(join(right, 'package.json'), JSON.stringify({ name: 'right', version: '1.0.0' }))
+    writeFileSync(join(execa, 'package.json'), JSON.stringify({ name: 'execa', version: '10.2.1' }))
+    symlinkSync(right, join(dir, '.pnpm', 'left@1.0.0', 'node_modules', 'right'), 'dir')
+    symlinkSync(left, join(dir, '.pnpm', 'right@1.0.0', 'node_modules', 'left'), 'dir')
+
+    expect(materializeMissingRootPackages(dir)).toBe(3)
+    expect(JSON.parse(readFileSync(join(dir, 'left', 'node_modules', 'right', 'package.json'), 'utf8')).version).toBe('1.0.0')
+    expect(JSON.parse(readFileSync(join(dir, 'right', 'node_modules', 'left', 'package.json'), 'utf8')).version).toBe('1.0.0')
+  })
 })
