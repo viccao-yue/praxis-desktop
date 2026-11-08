@@ -1108,6 +1108,34 @@ test('one missing expert preset does not disable the manager after a cold restar
   } finally { await h.cleanup(); await rm(root, { recursive: true, force: true }); }
 });
 
+test('Agent preset roster keeps one published preset per live expert across republish and restart', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'workdsh-preset-roster-'));
+  let h = await boot(root);
+  try {
+    const a = actor('owner-a');
+    await h.experts.list(a, {});
+    const first = await publishCopyOfDefault(h, a, 'roster-v1');
+    await h.experts.updateDraft(a, first.expertId, { description: 'second publish for roster hygiene' }, { operationId: 'roster-edit' });
+    const detail = await h.experts.get(a, first.expertId);
+    const validation = await h.experts.validate(a, first.expertId, detail.draft.revision);
+    assert.equal(validation.publishable, true);
+    const request = await h.experts.requestPublishConfirmation(a, first.expertId, detail.draft.revision);
+    const proof = await h.experts.confirmPublish(a, request.confirmationToken);
+    const second = await h.experts.publish(a, first.expertId, detail.draft.revision, validation.dependencyLockDigest, proof, { operationId: 'roster-v2' });
+    assert.notEqual(second.presetRevisionRef, first.receipt.presetRevisionRef);
+    const live = (await h.ctx.agentPresets.list()).filter((row) => row.id.startsWith('wd-exp-'));
+    assert.equal(live.some((row) => row.id === first.receipt.presetRevisionRef), false, 'superseded preset leaves the Agent roster');
+    assert.ok(live.some((row) => row.id === second.presetRevisionRef), 'current published preset stays registered');
+    assert.equal(live.length, 7, 'six defaults plus one personal expert');
+    await h.cleanup();
+    h = await boot(root);
+    const afterRestart = (await h.ctx.agentPresets.list()).filter((row) => row.id.startsWith('wd-exp-'));
+    assert.equal(afterRestart.length, 7, 'cold start does not re-register historical revisions');
+    assert.equal(afterRestart.some((row) => row.id === first.receipt.presetRevisionRef), false);
+    assert.ok(afterRestart.some((row) => row.id === second.presetRevisionRef));
+  } finally { await h.cleanup(); await rm(root, { recursive: true, force: true }); }
+});
+
 
 test('required ready connector is selected in the native expert session and becomes unavailable when disabled', async () => {
   let enabled = true;

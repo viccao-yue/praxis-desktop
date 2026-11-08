@@ -264,8 +264,14 @@ export class ExpertsManager extends Service implements ExpertsService {
       if (liveExperts.has(revision.expertId)) continue;
       await this.revisions.delete(key);
     }
-    for (const [, revision] of this.revisions.entries()) {
-      if (revision.compilerVersion !== COMPILER_VERSION) continue;
+    // Agent 预设 → 自定义 must stay 1:1 with live published digital employees.
+    // Re-registering every historical revision after each avatar/skill repair floods
+    // the official settings roster with duplicate "自定义" cards.
+    for (const [, expert] of this.experts.entries()) {
+      const ref = expert.publishedRevisionRef;
+      if (!ref) continue;
+      const revision = this.revisions.get(keys.revision(ref.expertId, ref.revisionId));
+      if (!revision || revision.compilerVersion !== COMPILER_VERSION) continue;
       try {
         await registerExpertPreset(this.ctx, revision.presetRevisionRef, revision.compositionDigest, this.agentsHome);
       } catch {
@@ -490,6 +496,7 @@ export class ExpertsManager extends Service implements ExpertsService {
     const defDigest = definitionDigest(desired);
     const revisionId = revisionIdFor(defDigest, effectiveLockDigest, compiled.presetId);
     if (revisionId === current.revisionId && readiness === 'ready' && !avatarStale) return;
+    const previousPresetId = current.presetRevisionRef;
     const now = new Date().toISOString();
     const draftRevision = shortDigest({ seed: expertId, repair: defDigest });
     const revision: ExpertRevision = {
@@ -510,6 +517,7 @@ export class ExpertsManager extends Service implements ExpertsService {
       revision: `r-${randomUUID()}`,
       updatedAt: now,
     }));
+    await this.releaseSupersededPreset(previousPresetId, compiled.presetId, expertId);
     await this.audit(actor, 'experts.publish', expertId, 'succeeded', 'experts/default-skill-repair-succeeded', {
       revisionId,
       skills: String(effectiveLock.length),
@@ -779,7 +787,14 @@ export class ExpertsManager extends Service implements ExpertsService {
       const preset = await this.ctx.agentPresets.resolve(revision.presetRevisionRef);
       if (preset.broken) return 'broken';
     } catch {
-      return 'broken';
+      // Historical revisions stay off the Agent 预设 roster until summoned again.
+      try {
+        await registerExpertPreset(this.ctx, revision.presetRevisionRef, revision.compositionDigest, this.agentsHome);
+        const preset = await this.ctx.agentPresets.resolve(revision.presetRevisionRef);
+        if (preset.broken) return 'broken';
+      } catch {
+        return 'broken';
+      }
     }
     for (const ref of revision.dependencyLock) {
       signal?.throwIfAborted();
@@ -1280,6 +1295,9 @@ export class ExpertsManager extends Service implements ExpertsService {
     await this.authorize(actor, 'experts.publish', expert, signal);
     if (expert.origin === 'default') throw new ExpertsError('experts/forbidden', '内置专家不可直接发布，请先复制为我的专家。', { reason: 'default-immutable' });
     if (expert.availability === 'archived') throw new ExpertsError('experts/archived', '专家已归档，无法发布。');
+    const previousPublished = expert.publishedRevisionRef
+      ? this.revisionsTable().get(keys.revision(expert.publishedRevisionRef.expertId, expert.publishedRevisionRef.revisionId))
+      : undefined;
     const payloadDigest = digestOf({ action: 'experts.publish', expertId, draftRevision, dependencyLockDigest });
     try {
       const receipt = await this.withOperation(actor, 'experts.publish', context, payloadDigest, signal,
@@ -1374,6 +1392,7 @@ export class ExpertsManager extends Service implements ExpertsService {
         },
       );
       await this.audit(actor, 'experts.publish', expertId, 'succeeded', 'experts/publish-succeeded', { revisionId: receipt.revision.revisionId });
+      await this.releaseSupersededPreset(previousPublished?.presetRevisionRef, receipt.presetRevisionRef, expertId);
       return receipt;
     } catch (error) {
       await this.audit(actor, 'experts.publish', expertId, 'failed', errorCode(error, 'experts/internal'));
@@ -1425,6 +1444,19 @@ export class ExpertsManager extends Service implements ExpertsService {
       await this.audit(actor, 'experts.set-availability', expertId, 'failed', errorCode(error, 'experts/internal'));
       throw error;
     }
+  }
+
+  /** Keep Agent 预设 → 自定义 aligned with the live published revision only. */
+  private async releaseSupersededPreset(previousPresetId: string | undefined, nextPresetId: string, expertId?: string): Promise<void> {
+    const stale = new Set<string>();
+    if (previousPresetId && previousPresetId !== nextPresetId) stale.add(previousPresetId);
+    if (expertId) {
+      for (const presetId of this.presetIdsOf(expertId)) {
+        if (presetId !== nextPresetId) stale.add(presetId);
+      }
+    }
+    if (!stale.size) return;
+    await releaseExpertPresets(this.ctx, [...stale]);
   }
 
   private presetIdsOf(expertId: string): string[] {

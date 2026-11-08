@@ -91,13 +91,18 @@ export function expertPresetDir(presetId: string, agentsHome?: string): string {
 
 type PresetRegistration = { ready: Promise<void>; dispose?: () => void | Promise<void> };
 const registrations = new WeakMap<Context, Map<string, PresetRegistration>>();
+/** Survive ctx identity changes so a superseded publish can still leave the Agent roster. */
+const disposeByPresetId = new Map<string, () => void | Promise<void>>();
 
 /** Drop every preset this context still owns when the expert plugin stops. */
 export function retainExpertPresetLifetime(ctx: Context): void {
   ctx.effect(() => () => {
     const pending = registrations.get(ctx);
     if (!pending) return;
-    for (const entry of pending.values()) void entry.dispose?.();
+    for (const [presetId, entry] of pending) {
+      disposeByPresetId.delete(presetId);
+      void entry.dispose?.();
+    }
     pending.clear();
   }, 'workdsh.expert-presets.release');
 }
@@ -119,6 +124,7 @@ export async function registerExpertPreset(ctx: Context, presetId: string, expec
   const existing = pending.get(presetId);
   if (existing) {
     await existing.ready;
+    if (existing.dispose) disposeByPresetId.set(presetId, existing.dispose);
     return;
   }
   const definition = JSON.parse(text) as PresetDefinition;
@@ -129,6 +135,7 @@ export async function registerExpertPreset(ctx: Context, presetId: string, expec
     // Await inside this call. A later `.then` loses the plugin fiber, and
     // `ctx.effect` there both throws and drops the only unregister handle.
     registration.dispose = await ctx.agentPresets.register(definition);
+    if (registration.dispose) disposeByPresetId.set(presetId, registration.dispose);
   } catch (error) {
     if (pending.get(presetId) === registration) pending.delete(presetId);
     if (error instanceof Error && error.message.startsWith('Duplicate agent preset:')) return;
@@ -139,13 +146,13 @@ export async function registerExpertPreset(ctx: Context, presetId: string, expec
 /** Remove compiled presets from the official Agent preset roster. Frozen preset directories stay on disk. */
 export async function releaseExpertPresets(ctx: Context, presetIds: readonly string[]): Promise<void> {
   const pending = registrations.get(ctx);
-  if (!pending) return;
   await Promise.all(presetIds.map(async (presetId) => {
-    const entry = pending.get(presetId);
-    if (!entry) return;
-    pending.delete(presetId);
-    await entry.ready.catch(() => undefined);
-    await entry.dispose?.();
+    const entry = pending?.get(presetId);
+    const dispose = entry?.dispose ?? disposeByPresetId.get(presetId);
+    pending?.delete(presetId);
+    disposeByPresetId.delete(presetId);
+    if (entry) await entry.ready.catch(() => undefined);
+    await dispose?.();
   }));
 }
 
