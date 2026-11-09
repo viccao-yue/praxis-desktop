@@ -64,6 +64,37 @@ function copyPackageBody(real, destination) {
   })
 }
 
+/** Packages listed under the package's own `node_modules` (bundledDependencies).
+ * The body copy skips nested `node_modules`; without this step the enterprise
+ * connection package loses identity/collaboration and the entry screen stays disabled. */
+function nestedPackages(real) {
+  const nested = join(real, 'node_modules')
+  if (!existsSync(nested)) return []
+  const found = []
+  for (const name of readdirSync(nested)) {
+    if (name === '.bin' || name.startsWith('.')) continue
+    const source = join(nested, name)
+    let scoped = false
+    try { scoped = name.startsWith('@') && !lstatSync(source).isSymbolicLink() } catch { continue }
+    if (scoped) {
+      for (const child of readdirSync(source)) found.push([join(name, child), join(source, child)])
+    } else found.push([name, source])
+  }
+  return found
+}
+
+function embedBundledDependencies(real, destination) {
+  for (const [relativeName, source] of nestedPackages(real)) {
+    let depReal
+    try { depReal = realpathSync(source) } catch { continue }
+    if (!existsSync(join(depReal, 'package.json'))) continue
+    const depDestination = join(destination, 'node_modules', relativeName)
+    if (existsSync(join(depDestination, 'package.json'))) continue
+    copyPackageBody(depReal, depDestination)
+    embedBundledDependencies(depReal, depDestination)
+  }
+}
+
 function packageRelative(real) {
   const parent = dirname(real)
   if (basename(parent).startsWith('@') && basename(dirname(parent)) === 'node_modules') return join(basename(parent), basename(real))
@@ -156,9 +187,14 @@ export function materializeMissingRootPackages(modulesDir) {
     const destination = join(modulesDir, relativeName)
     if (pinned) removeLink(destination)
     copyPackageBody(real, destination)
+    embedBundledDependencies(real, destination)
     embedPrivateDependencies(real, destination, rootReal, 2)
   }
   const execa = join(modulesDir, 'execa', 'package.json')
   if (!existsSync(execa)) throw new Error('Windows-safe Profile root is missing execa')
+  const connectionIdentity = join(modulesDir, 'workdsh-enterprise-connection', 'node_modules', 'workdsh-provider-identity-enterprise', 'package.json')
+  if (existsSync(join(modulesDir, 'workdsh-enterprise-connection', 'package.json')) && !existsSync(connectionIdentity)) {
+    throw new Error('Windows-safe Profile root is missing nested enterprise identity under workdsh-enterprise-connection')
+  }
   return chosen.size
 }

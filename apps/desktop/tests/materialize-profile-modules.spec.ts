@@ -48,6 +48,26 @@ describe('materializeMissingRootPackages', () => {
     expect(lstatSync(join(dir, 'commander')).isSymbolicLink()).toBe(false)
   })
 
+  it('keeps bundledDependencies nested under a hoisted package', () => {
+    const dir = modules()
+    const connection = join(dir, '.pnpm', 'workdsh-enterprise-connection@0.1.0', 'node_modules', 'workdsh-enterprise-connection')
+    const identity = join(connection, 'node_modules', 'workdsh-provider-identity-enterprise')
+    const collaboration = join(connection, 'node_modules', 'workdsh-plugin-enterprise-collaboration')
+    const execa = join(dir, '.pnpm', 'execa@10.2.1', 'node_modules', 'execa')
+    for (const directory of [identity, collaboration, execa]) mkdirSync(directory, { recursive: true })
+    writeFileSync(join(connection, 'package.json'), JSON.stringify({ name: 'workdsh-enterprise-connection', version: '0.1.0' }))
+    writeFileSync(join(identity, 'package.json'), JSON.stringify({ name: 'workdsh-provider-identity-enterprise', version: '0.1.0-alpha.3', exports: { './desktop': './desktop.js' } }))
+    writeFileSync(join(collaboration, 'package.json'), JSON.stringify({ name: 'workdsh-plugin-enterprise-collaboration', version: '0.1.0-alpha.1' }))
+    writeFileSync(join(execa, 'package.json'), JSON.stringify({ name: 'execa', version: '10.2.1' }))
+    symlinkSync(connection, join(dir, 'workdsh-enterprise-connection'), 'dir')
+
+    materializeMissingRootPackages(dir)
+    const nested = join(dir, 'workdsh-enterprise-connection', 'node_modules', 'workdsh-provider-identity-enterprise', 'package.json')
+    expect(lstatSync(join(dir, 'workdsh-enterprise-connection')).isSymbolicLink()).toBe(false)
+    expect(JSON.parse(readFileSync(nested, 'utf8')).name).toBe('workdsh-provider-identity-enterprise')
+    expect(existsSync(join(dir, 'workdsh-enterprise-connection', 'node_modules', 'workdsh-plugin-enterprise-collaboration', 'package.json'))).toBe(true)
+  })
+
   it('replaces a hoisted symlink into .pnpm with the selected real package', () => {
     const dir = modules()
     const excel = join(dir, '.pnpm', 'exceljs@4.4.0', 'node_modules', 'exceljs')
