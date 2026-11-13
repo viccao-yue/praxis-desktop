@@ -281,5 +281,28 @@ if (!prepared) {
     throw error
   }
 }
+// dsh-mineru drag-drop reads sessions.list.current; ship the mainView-compatible lookup.
+{
+  const old = 'var currentSession = function () { return ctx.sessions.list.getSnapshot().current; };'
+  const next = `var currentSession = function () {
+  var state = ctx.sessions.list.getSnapshot();
+  if (state.current) return state.current;
+  var rows = state.byId ? Object.values(state.byId) : [];
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (((row.retainedBy && row.retainedBy.mainView) || 0) > 0) return row.id;
+  }
+  return undefined;
+};`
+  const client = join(profile, 'node_modules', 'dsh-mineru', 'lib', 'client.js')
+  if (existsSync(client)) {
+    const text = readFileSync(client, 'utf8')
+    if (text.includes(old)) {
+      const patched = text.replaceAll(old, next)
+      if (!patched.includes('retainedBy.mainView') || patched.includes(old)) throw new Error('MinerU drop session patch failed')
+      writeFileSync(client, patched)
+    }
+  }
+}
 cpSync(join(profile, 'package.json'), join(output, 'profile-package.json'))
 console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) and optional enterprise connection at ${output}`)

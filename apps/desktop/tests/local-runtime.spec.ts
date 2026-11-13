@@ -1,8 +1,8 @@
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, hideEmailWorkbench, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from '../src/local-runtime.ts'
+import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, fixMineruDropSession, hideEmailWorkbench, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from '../src/local-runtime.ts'
 
 const roots: string[] = []
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }) })
@@ -74,6 +74,24 @@ it('strips dsh-email sidebar/workbench registration while keeping 设置', () =>
   expect(readFileSync(client, 'utf8')).toBe(next)
 })
 
+it('rewrites MinerU drag-drop session lookup to mainView retention', () => {
+  const { home, source } = fixture()
+  const broken = 'var currentSession = function () { return ctx.sessions.list.getSnapshot().current; };'
+  for (const root of [join(home, 'profiles/kaiwu'), source]) {
+    const client = join(root, 'node_modules/dsh-mineru/lib/client.js')
+    mkdirSync(dirname(client), { recursive: true })
+    writeFileSync(client, `prefix\n${broken}\nsuffix\n`)
+  }
+  fixMineruDropSession(home, source)
+  for (const root of [join(home, 'profiles/kaiwu'), source]) {
+    const next = readFileSync(join(root, 'node_modules/dsh-mineru/lib/client.js'), 'utf8')
+    expect(next).toContain('retainedBy.mainView')
+    expect(next).not.toContain('getSnapshot().current; };')
+  }
+  fixMineruDropSession(home, source)
+  expect(readFileSync(join(home, 'profiles/kaiwu/node_modules/dsh-mineru/lib/client.js'), 'utf8')).toContain('retainedBy.mainView')
+})
+
 it('isolates account/backend directories, device records and credential/skill environments', () => {
   const { root } = fixture()
   const actor = { id: 'A', organizationId: 'org', organizationName: 'Company', email: 'a@test', displayName: 'A', role: 'MEMBER' as const, mustChangePassword: false }
@@ -106,7 +124,9 @@ it('delegates startup and plugin installation to official runCli using one packa
   expect(host).toContain("process.argv[2] === 'plugin'")
   expect(host).toContain('await runCli({ manageDesktopProfile: true, packageManager })')
   expect(host).toContain('hideEmailWorkbench()')
+  expect(host).toContain('fixMineruDropSession()')
   expect(host).toContain('dsh-email.workbench')
+  expect(host).toContain('retainedBy.mainView')
   expect(host).toContain('runProfile({ environment: loadLayeredEnv')
   expect(host).toContain('resolvedProfile: { profile, installAnchor }')
   expect(host).toContain(JSON.stringify(join(source, 'profile-installation.json')))

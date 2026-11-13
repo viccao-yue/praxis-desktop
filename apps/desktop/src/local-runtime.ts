@@ -65,6 +65,38 @@ export function hideEmailWorkbench(home: string): void {
   writeFileSync(client, next, { mode: 0o600 })
 }
 
+/** dsh-mineru drop uses sessions.list.current; 0.2.1 exposes the open Session via mainView. */
+const MINERU_SESSION_OLD = 'var currentSession = function () { return ctx.sessions.list.getSnapshot().current; };'
+const MINERU_SESSION_NEW = `var currentSession = function () {
+  var state = ctx.sessions.list.getSnapshot();
+  if (state.current) return state.current;
+  var rows = state.byId ? Object.values(state.byId) : [];
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (((row.retainedBy && row.retainedBy.mainView) || 0) > 0) return row.id;
+  }
+  return undefined;
+};`
+
+/** Patch MinerU drag-drop session lookup in Home and/or bundled Profile trees. */
+export function fixMineruDropSession(...roots: string[]): void {
+  for (const root of roots) {
+    for (const client of [
+      join(root, 'profiles', 'kaiwu', 'node_modules', 'dsh-mineru', 'lib', 'client.js'),
+      join(root, 'node_modules', 'dsh-mineru', 'lib', 'client.js'),
+    ]) {
+      if (!existsSync(client)) continue
+      const source = readFileSync(client, 'utf8')
+      if (!source.includes(MINERU_SESSION_OLD)) continue
+      const next = source.replaceAll(MINERU_SESSION_OLD, MINERU_SESSION_NEW)
+      if (!next.includes('retainedBy.mainView') || next.includes(MINERU_SESSION_OLD)) {
+        throw new Error('MinerU 拖入会话判定补丁未完整应用')
+      }
+      writeFileSync(client, next, { mode: 0o600 })
+    }
+  }
+}
+
 /** Fresh personal Profiles hide better-sidebar Git / Diff tabs; settings can re-enable. */
 const PERSONAL_SIDEBAR_DEFAULTS = `- id: better-sidebar
   config:
@@ -173,6 +205,7 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
   hideImSidebar(home)
   // Settings owns 邮件; plugin reinstall must not leave a sidebar workbench.
   hideEmailWorkbench(home)
+  fixMineruDropSession(home, source)
   // Caller installs changed dependencies with the pinned official package manager before marking success.
   if (changed) writeJson(state, { digest: previous?.digest ?? digest, base: previous?.base ?? base, pendingInstallation: true })
   else writeJson(state, { digest, base })
@@ -200,6 +233,7 @@ export function enterpriseSpace(userData: string, backend: string, actor: Enterp
   // Settings already contains IM机器人. Enterprise login does not add a second sidebar entry.
   hideImSidebar(home)
   hideEmailWorkbench(home)
+  fixMineruDropSession(home)
   return { root, home, deviceId }
 }
 
@@ -244,7 +278,10 @@ export function officialHostLauncher(source: string, home: string, executable: s
   // plugin command keeps 邮件 under 设置 only (Electron may also strip earlier).
   const emailClient = join(profile, 'node_modules', 'dsh-email', 'lib', 'client.js')
   const hideEmail = `function hideEmailWorkbench(){const client=${JSON.stringify(emailClient)};if(!existsSync(client))return;const source=readFileSync(client,'utf8');let next=source;const sidebar=${JSON.stringify(EMAIL_SIDEBAR)};const workbench=${JSON.stringify(EMAIL_WORKBENCH)};if(next.includes(sidebar))next=next.replaceAll(sidebar,'');if(next.includes(workbench))next=next.replaceAll(workbench,'');if(next===source)return;if(!next.includes('settings.section')||next.includes('dsh-email.workbench')||next.includes("ctx.slots.inject('sidebar.panellist'")||next.includes('ctx.slots.inject("sidebar.panellist"'))throw new Error('邮件侧栏隐藏未完整应用');writeFileSync(client,next);}`
-  writeFileSync(launcher, `import { existsSync, readFileSync, writeFileSync } from 'node:fs';\nimport { runCli } from ${JSON.stringify(pathToFileURL(cli).href)};\nimport { runProfile } from ${JSON.stringify(pathToFileURL(boot).href)};\nimport { loadProfileDirectory, loadLayeredEnv, reportSkippedBundles } from ${JSON.stringify(pathToFileURL(appBoot).href)};\nconst installAnchor = ${JSON.stringify(anchor)};\nconst profile = loadProfileDirectory('dsh', ${JSON.stringify(profile)}, installAnchor);\nconst packageManager = ${packageManagerLiteral};\n${hideEmail}\nif (process.argv[2] === 'plugin') { await runCli({ manageDesktopProfile: true, packageManager }); hideEmailWorkbench(); }\nelse { hideEmailWorkbench(); reportSkippedBundles('dsh', profile);\nawait runProfile({ environment: loadLayeredEnv('dsh'), profile: 'kaiwu', resolvedProfile: { profile, installAnchor }, patchFiles: ${JSON.stringify(patches)}, args: process.argv.slice(2), packageManager }); }\n`, { mode: 0o600 })
+  const mineruOld = MINERU_SESSION_OLD
+  const mineruNew = MINERU_SESSION_NEW
+  const fixMineru = `function fixMineruDropSession(){for(const client of[${JSON.stringify(join(profile, 'node_modules', 'dsh-mineru', 'lib', 'client.js'))},${JSON.stringify(join(source, 'node_modules', 'dsh-mineru', 'lib', 'client.js'))}]){if(!existsSync(client))continue;const text=readFileSync(client,'utf8');const old=${JSON.stringify(mineruOld)};if(!text.includes(old))continue;const next=text.replaceAll(old,${JSON.stringify(mineruNew)});if(!next.includes('retainedBy.mainView')||next.includes(old))throw new Error('MinerU 拖入会话判定补丁未完整应用');writeFileSync(client,next);}}`
+  writeFileSync(launcher, `import { existsSync, readFileSync, writeFileSync } from 'node:fs';\nimport { runCli } from ${JSON.stringify(pathToFileURL(cli).href)};\nimport { runProfile } from ${JSON.stringify(pathToFileURL(boot).href)};\nimport { loadProfileDirectory, loadLayeredEnv, reportSkippedBundles } from ${JSON.stringify(pathToFileURL(appBoot).href)};\nconst installAnchor = ${JSON.stringify(anchor)};\nconst profile = loadProfileDirectory('dsh', ${JSON.stringify(profile)}, installAnchor);\nconst packageManager = ${packageManagerLiteral};\n${hideEmail}\n${fixMineru}\nif (process.argv[2] === 'plugin') { await runCli({ manageDesktopProfile: true, packageManager }); hideEmailWorkbench(); fixMineruDropSession(); }\nelse { hideEmailWorkbench(); fixMineruDropSession(); reportSkippedBundles('dsh', profile);\nawait runProfile({ environment: loadLayeredEnv('dsh'), profile: 'kaiwu', resolvedProfile: { profile, installAnchor }, patchFiles: ${JSON.stringify(patches)}, args: process.argv.slice(2), packageManager }); }\n`, { mode: 0o600 })
   return launcher
 }
 
