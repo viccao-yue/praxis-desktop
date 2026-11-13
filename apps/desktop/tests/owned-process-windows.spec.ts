@@ -43,6 +43,45 @@ it('confirms an already absent root only after CIM finds no owned descendants an
   expect(process.kill).toHaveBeenCalledWith(424242, 0)
 })
 
+it('accepts a single CIM process object from PowerShell ConvertTo-Json', async () => {
+  Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+  vi.spyOn(Date, 'now').mockReturnValue(1000)
+  vi.spyOn(process, 'kill').mockImplementation(() => { throw Object.assign(new Error('missing'), { code: 'ESRCH' }) })
+  const child = Object.assign(new EventEmitter(), { pid: 424242, kill: vi.fn(), exitCode: 0, signalCode: null }) as unknown as ChildProcess
+  trackOwnedProcess(child, 900)
+  child.emit('exit', 0)
+  const killed: number[] = []
+  let alive: { pid: number, ppid: number, createdAt: number } | undefined = { pid: 424242, ppid: 1, createdAt: 950 }
+  vi.mocked(spawn).mockImplementation((_command, args) => {
+    const script = Buffer.from(String(args![args!.length - 1]), 'base64').toString('utf16le')
+    const task = Object.assign(new EventEmitter(), { stdout: new EventEmitter(), stderr: new EventEmitter(), kill: vi.fn() })
+    queueMicrotask(() => {
+      if (script.includes('/PID')) {
+        killed.push(424242)
+        alive = undefined
+        task.stdout.emit('data', Buffer.from(JSON.stringify({ status: 'taskkill', code: 0 })))
+        task.emit('close', 0)
+      } else {
+        // Windows PowerShell emits one object, not a one-element array.
+        task.stdout.emit('data', Buffer.from(alive ? JSON.stringify(alive) : '[]'))
+        task.emit('close', 0)
+      }
+    })
+    return task as unknown as ChildProcess
+  })
+  await expect(cleanOwnedProcessTree(child)).resolves.toBeUndefined()
+  expect(killed).toEqual([424242])
+})
+
+it('taskkills the owned root with /T once before sweeping leftovers', async () => {
+  const { child, killed } = fixture([
+    { pid: 424242, ppid: 1, createdAt: 950 },
+    { pid: 424243, ppid: 424242, createdAt: 980 },
+  ], { exited: true })
+  await expect(cleanOwnedProcessTree(child)).resolves.toBeUndefined()
+  expect(killed[0]).toBe(424242)
+})
+
 it('cleans living descendants even when their owned root has already exited', async () => {
   const { child, killed, scripts } = fixture([
     { pid: 424243, ppid: 424242, createdAt: 950 },

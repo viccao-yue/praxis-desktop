@@ -60,11 +60,23 @@ async function windowsCommand(script: string, timeoutMs: number): Promise<string
     task.once('close', code => finish(code === 0 ? undefined : new Error(`Windows 本机进程清理查询失败 (${code})${/access|denied|unauthorized/iu.test(error) ? '，请核对权限' : ''}`)))
   })
 }
+function parseWindowsJsonArray(output: string): unknown[] {
+  // PowerShell ConvertTo-Json emits {} for one object and "" for an empty @().
+  const text = output.trim()
+  if (!text) return []
+  const parsed: unknown = JSON.parse(text)
+  if (Array.isArray(parsed)) return parsed
+  if (parsed && typeof parsed === 'object') return [parsed]
+  throw new Error('Windows 本机进程清理查询结果无效')
+}
+
 async function windowsSnapshot(pids: number[], timeoutMs: number): Promise<WindowsProcessIdentity[]> {
   const filter = [...new Set(pids)].map(pid => `(ProcessId = ${pid} OR ParentProcessId = ${pid})`).join(' OR ')
-  const output = await windowsCommand(`$ErrorActionPreference='Stop'; $rows=@(Get-CimInstance Win32_Process -Filter '${filter}' -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { [pscustomobject]@{pid=[int]$_.ProcessId;ppid=[int]$_.ParentProcessId;createdAt=([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds()} }); ConvertTo-Json -InputObject $rows -Compress`, timeoutMs)
-  const rows: unknown = JSON.parse(output)
-  if (!Array.isArray(rows) || rows.some(row => !row || !Number.isInteger(row.pid) || !Number.isInteger(row.ppid) || !Number.isSafeInteger(row.createdAt) || row.pid <= 0)) throw new Error('Windows 本机进程清理查询结果无效')
+  const output = await windowsCommand(`$ErrorActionPreference='Stop'; $rows=@(Get-CimInstance Win32_Process -Filter '${filter}' -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { [pscustomobject]@{pid=[int]$_.ProcessId;ppid=[int]$_.ParentProcessId;createdAt=([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds()} }); if($rows.Count -eq 0){'[]'} else {ConvertTo-Json -InputObject @($rows) -Compress}`, timeoutMs)
+  const rows = parseWindowsJsonArray(output)
+  if (rows.some(row => !row || typeof row !== 'object' || !Number.isInteger((row as WindowsProcessIdentity).pid) || !Number.isInteger((row as WindowsProcessIdentity).ppid) || !Number.isSafeInteger((row as WindowsProcessIdentity).createdAt) || (row as WindowsProcessIdentity).pid <= 0)) {
+    throw new Error('Windows 本机进程清理查询结果无效')
+  }
   return rows as WindowsProcessIdentity[]
 }
 async function windowsTaskkill(row: WindowsProcessIdentity, timeoutMs: number): Promise<{ status: string, code?: number, output?: string }> {
@@ -80,8 +92,10 @@ function processMissing(pid: number): boolean {
 async function cleanWindowsTree(child: ChildProcess): Promise<void> {
   const state = ownership.get(child)
   if (!state) throw new Error('Windows 本机进程缺少所有权记录，未停止未知进程')
-  const deadline = Date.now() + 12_000
-  const budget = (): number => { const remaining = deadline - Date.now(); if (remaining <= 0) throw new Error('Windows 本机进程树清理超时'); return Math.min(4000, remaining) }
+  // Quit paths previously timed out after many per-PID PowerShell round-trips.
+  const deadline = Date.now() + 20_000
+  const budget = (): number => { const remaining = deadline - Date.now(); if (remaining <= 0) throw new Error('Windows 本机进程树清理超时'); return Math.min(6_000, remaining) }
+  let rooted = false
   for (let pass = 0; pass < 8; pass++) {
     const queried = new Set([state.pid, ...state.known.map(row => row.pid)])
     const rows = await windowsSnapshot([...queried], budget())
@@ -96,6 +110,16 @@ async function cleanWindowsTree(child: ChildProcess): Promise<void> {
     }
     // Discover nested descendants before removing their only visible parent.
     if (selected.some(row => !queried.has(row.pid))) continue
+    // One CreationDate-checked /T on the owned root collapses the live tree fast.
+    const root = selected.find(row => row.pid === state.pid)
+    if (root && !rooted) {
+      rooted = true
+      const result = await windowsTaskkill(root, budget())
+      if (result.status === 'taskkill' && result.code !== 0 && !(result.code === 128 && processMissing(root.pid))) {
+        throw new Error(`Windows 本机进程树清理失败 (${result.code})${/access|denied|权限|拒绝/iu.test(result.output ?? '') ? '，操作被拒绝' : ''}，未确认停止`)
+      }
+      continue
+    }
     for (const row of [...selected].sort((a, b) => b.createdAt - a.createdAt)) {
       const result = await windowsTaskkill(row, budget())
       if (result.status === 'taskkill' && result.code !== 0 && !(result.code === 128 && processMissing(row.pid))) {
@@ -135,7 +159,7 @@ export async function stopOwnedProcess(child: ChildProcess): Promise<void> {
   if (process.platform === 'win32') {
     await cleanOwnedProcessTree(child)
     try {
-      await waitForOwnedClose(child, 12_000)
+      await waitForOwnedClose(child, 20_000)
     } catch (error) {
       if (child.pid && !processMissing(child.pid)) throw error
     }

@@ -320,7 +320,12 @@ async function leaveWorkspace(): Promise<void> {
   await session?.authority?.close()
   session?.login.cancelRequests()
   const child = runtime
-  if (child) { await stopOwnedProcess(child); if (runtime === child) { runtime = undefined; runtimeStarting = false } }
+  let processError: unknown
+  if (child) {
+    try { await stopOwnedProcess(child) }
+    catch (error) { processError = error }
+    finally { if (runtime === child) { runtime = undefined; runtimeStarting = false } }
+  }
   enterprise = undefined
   rememberCommandSpace()
   if (session) {
@@ -337,6 +342,7 @@ async function leaveWorkspace(): Promise<void> {
   enterpriseWindows.clear()
   if (page && !page.isDestroyed()) page.destroy()
   pendingConnection = undefined; entrySurface = false
+  if (processError) throw processError
 }
 
 async function returnToEntry(): Promise<void> {
@@ -547,7 +553,11 @@ if (!app.requestSingleInstanceLock()) {
       quitting = true
       app.quit()
     }).catch(error => {
-      dialog.showErrorBox('暂时无法退出', error instanceof Error ? error.message : '请稍后重试')
+      // Do not leave a half-dead Host behind a blocked quit; force exit after best-effort cleanup.
+      dialog.showErrorBox('退出时进程清理未确认', `${error instanceof Error ? error.message : '请稍后检查'}。应用将退出；若仍有残留进程，请在任务管理器中结束开物相关进程后再开。`)
+      stopRuntime()
+      quitting = true
+      app.quit()
     }).finally(() => { switching = false })
   })
   app.on('window-all-closed', () => {
