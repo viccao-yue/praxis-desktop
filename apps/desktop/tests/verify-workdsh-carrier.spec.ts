@@ -22,6 +22,15 @@ describe('ASAR inventory paths', () => {
   })
 })
 
+describe('packaged Node Hardened Runtime entitlements', () => {
+  it('includes allow-unsigned-executable-memory for Intel V8 under Hardened Runtime', () => {
+    const plist = readFileSync(new URL('../scripts/node-runtime-entitlements.plist', import.meta.url), 'utf8')
+    expect(plist).toContain('com.apple.security.cs.allow-jit')
+    expect(plist).toContain('com.apple.security.cs.allow-unsigned-executable-memory')
+    expect(plist).toContain('com.apple.security.cs.disable-library-validation')
+  })
+})
+
 describe('packaged Node cross-arch invocation', () => {
   it('wraps x64 Node with arch -x86_64 and extends timeouts on arm64 macOS hosts', () => {
     const node = '/tmp/packaged-node'

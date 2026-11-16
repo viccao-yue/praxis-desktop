@@ -191,9 +191,9 @@ export async function afterPack(context: PackContext): Promise<void> {
   const instances = verifyInstalledDshVersions(profile, DSH_VERSION)
   const node = join(runtime, 'primary-runtime', 'dependencies', 'node', 'bin',
     context.electronPlatformName === 'win32' ? 'node.exe' : 'node')
-  // Official release binaries carry the upstream signing identity. The owned
-  // package must permit separately published native plugin dependencies; final
-  // Developer ID signing, when requested, follows this afterPack check.
+  // Official release binaries carry the upstream signing identity. Re-sign with
+  // Hardened Runtime entitlements that include allow-unsigned-executable-memory
+  // (required for Intel V8 mprotect); final Developer ID signing follows afterPack.
   if (context.electronPlatformName === 'darwin') {
     const entitlements = fileURLToPath(new URL('./node-runtime-entitlements.plist', import.meta.url))
     const signed = spawnSync('/usr/bin/codesign', ['--force', '--sign', '-', '--options', 'runtime', '--entitlements', entitlements, node], { encoding: 'utf8', timeout: 30_000 })
