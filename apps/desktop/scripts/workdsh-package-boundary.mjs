@@ -30,7 +30,9 @@ export const CATALOG_PACKAGES = Object.freeze({
   'dsh-ui-appearance': '0.1.23',
   'dsh-better-sidebar': '0.28.0',
   '@xmanrui/dsh-im': '5.4.0',
-  'dsh-living-memory': '0.2.10',
+  // Praxis: layered memory + self-evolving skills (replaces dsh-living-memory).
+  // Overlay upgrades strip living-memory and enable mnemon via local-runtime migration.
+  'dsh-mnemon': '0.5.47',
   // Praxis: image transcription for text-only models (设置 → 视觉增强).
   'dsh-vision-plugin': '1.4.0',
   // Praxis default community plugins (personal base installer).

@@ -139,9 +139,10 @@ function verifyInstalled() {
   if (config.error || config.status !== 0) throw new Error('Official runtime composition failed: ' + (config.error ?? config.stderr))
   verifyOfficialWebPackages(manifest, profile, config.stdout)
   verifyDefaultComposition(config.stdout)
-  for (const id of ['skillhub', 'dsh-market', 'playwright-browser', 'dsh-asr-voice', 'web-search-free']) {
+  for (const id of ['skillhub', 'dsh-market', 'playwright-browser', 'dsh-asr-voice', 'web-search-free', 'mnemon']) {
     if (!config.stdout.includes('id: ' + id)) throw new Error('Missing community catalog integration: ' + id)
   }
+  if (config.stdout.includes('id: living-memory')) throw new Error('dsh-living-memory must not remain in the default composition')
   // Praxis: hide contact/signin; unsigned click opens settings.
   patchAccountMenuAt(profile)
   // Praxis: hide the waiting-for-browser login modal; browser flow continues.

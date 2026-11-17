@@ -58,6 +58,58 @@ it('carries bundled optional enterprise-connection into new Homes and schedules 
   expect(JSON.parse(readFileSync(join(first.profile, 'package.json'), 'utf8')).dsh.profile.bundles).not.toContain('workdsh-provider-identity-enterprise')
 })
 
+it('on overlay upgrade replaces dsh-living-memory with dsh-mnemon in personal and enterprise Homes', () => {
+  const { source, home, base } = fixture()
+  writeFileSync(join(source, 'package.json'), JSON.stringify({
+    ...base,
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'workdsh-plugin-skills', 'dsh-living-memory'] } },
+  }))
+  const first = materializeRuntimeProfile(source, home)
+  const manifest = join(first.profile, 'package.json')
+  const user = JSON.parse(readFileSync(manifest, 'utf8'))
+  user.dependencies = { ...(user.dependencies ?? {}), 'dsh-living-memory': '0.2.10', 'user-plugin': 'file:custom.tgz' }
+  user.dsh.profile.bundles = ['@deepseek-ai/dsh-base', 'workdsh-plugin-skills', 'dsh-living-memory', 'user-plugin']
+  writeFileSync(manifest, JSON.stringify(user))
+  mkdirSync(join(first.profile, 'node_modules', 'dsh-living-memory'), { recursive: true })
+  writeFileSync(join(first.profile, 'node_modules', 'dsh-living-memory', 'package.json'), JSON.stringify({ name: 'dsh-living-memory', version: '0.2.10' }))
+  markProfileUpdated(source, first.profile)
+
+  writeFileSync(join(source, 'package.json'), JSON.stringify({
+    ...base,
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'workdsh-plugin-skills', 'dsh-mnemon'] } },
+  }))
+  const upgraded = materializeRuntimeProfile(source, home)
+  expect(upgraded.changed).toBe(true)
+  const next = JSON.parse(readFileSync(manifest, 'utf8'))
+  expect(next.dsh.profile.bundles).toContain('dsh-mnemon')
+  expect(next.dsh.profile.bundles).toContain('user-plugin')
+  expect(next.dsh.profile.bundles).not.toContain('dsh-living-memory')
+  expect(next.dependencies['dsh-living-memory']).toBeUndefined()
+  expect(next.dependencies['user-plugin']).toBe('file:custom.tgz')
+
+  // Enterprise Home uses the same materializeRuntimeProfile path.
+  const enterpriseHome = join(home, '..', 'enterprise-home')
+  mkdirSync(join(enterpriseHome, 'profiles', 'kaiwu'), { recursive: true })
+  writeFileSync(join(source, 'package.json'), JSON.stringify({
+    ...base,
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'workdsh-plugin-skills', 'dsh-living-memory'] } },
+  }))
+  const enterpriseFirst = materializeRuntimeProfile(source, enterpriseHome)
+  const enterpriseManifest = join(enterpriseFirst.profile, 'package.json')
+  const enterpriseUser = JSON.parse(readFileSync(enterpriseManifest, 'utf8'))
+  enterpriseUser.dsh.profile.bundles.push('dsh-living-memory')
+  writeFileSync(enterpriseManifest, JSON.stringify(enterpriseUser))
+  markProfileUpdated(source, enterpriseFirst.profile)
+  writeFileSync(join(source, 'package.json'), JSON.stringify({
+    ...base,
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'workdsh-plugin-skills', 'dsh-mnemon'] } },
+  }))
+  materializeRuntimeProfile(source, enterpriseHome)
+  const enterpriseNext = JSON.parse(readFileSync(enterpriseManifest, 'utf8'))
+  expect(enterpriseNext.dsh.profile.bundles).toContain('dsh-mnemon')
+  expect(enterpriseNext.dsh.profile.bundles).not.toContain('dsh-living-memory')
+})
+
 it('strips dsh-email sidebar/workbench registration while keeping 设置', () => {
   const { home } = fixture()
   const client = join(home, 'profiles/kaiwu/node_modules/dsh-email/lib/client.js')

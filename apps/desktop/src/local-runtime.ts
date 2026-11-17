@@ -104,6 +104,40 @@ const PERSONAL_SIDEBAR_DEFAULTS = `- id: better-sidebar
       git: false
       diff: false
 `
+
+/** Product catalog memory plugin: living-memory → mnemon (personal and enterprise Homes). */
+const LIVING_MEMORY_PACKAGE = 'dsh-living-memory'
+const MNEMON_PACKAGE = 'dsh-mnemon'
+
+/**
+ * On overlay upgrade, drop living-memory and ensure mnemon when the packaged
+ * Profile no longer ships living-memory. Applies to personal and enterprise Homes.
+ */
+function migrateLivingMemoryToMnemon(current: ProfilePackage, nextBundles: string[]): boolean {
+  let mutated = false
+  const dropLiving = !nextBundles.includes(LIVING_MEMORY_PACKAGE)
+  if (dropLiving) {
+    for (const section of ['dependencies', 'optionalDependencies'] as const) {
+      if (current[section]?.[LIVING_MEMORY_PACKAGE] === undefined) continue
+      delete current[section]![LIVING_MEMORY_PACKAGE]
+      mutated = true
+    }
+  }
+  current.dsh ??= {}
+  current.dsh.profile ??= {}
+  current.dsh.profile.bundles ??= []
+  const bundles = current.dsh.profile.bundles
+  if (dropLiving && bundles.includes(LIVING_MEMORY_PACKAGE)) {
+    current.dsh.profile.bundles = bundles.filter(name => name !== LIVING_MEMORY_PACKAGE)
+    mutated = true
+  }
+  if (nextBundles.includes(MNEMON_PACKAGE) && !current.dsh.profile.bundles.includes(MNEMON_PACKAGE)) {
+    current.dsh.profile.bundles.push(MNEMON_PACKAGE)
+    mutated = true
+  }
+  return mutated
+}
+
 function baseDigest(source: string, base: ProfilePackage, version: string): string {
   const marker = join(source, '.workdsh-desktop-release.json')
   const workspace = join(source, 'pnpm-workspace.yaml')
@@ -187,12 +221,21 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
     current.dsh ??= {}; current.dsh.profile ??= {}
     current.dsh.profile.bundles = selected.filter(name => !oldBundles.includes(name) || nextBundles.includes(name))
     for (const name of nextBundles) if (!oldBundles.includes(name) && !current.dsh.profile.bundles.includes(name)) current.dsh.profile.bundles.push(name)
-    if (JSON.stringify(json(manifest)) !== JSON.stringify(current)) {
+    // Catalog swap: living-memory → mnemon (same for personal and enterprise Homes).
+    const beforeManifest = json(manifest)
+    const hadLivingDependency = Boolean(beforeManifest.dependencies?.[LIVING_MEMORY_PACKAGE]
+      || beforeManifest.optionalDependencies?.[LIVING_MEMORY_PACKAGE])
+    const hadLivingModule = existsSync(join(modules, LIVING_MEMORY_PACKAGE))
+    const memoryMigrated = migrateLivingMemoryToMnemon(current, nextBundles)
+    if (JSON.stringify(beforeManifest) !== JSON.stringify(current)) {
       writeJson(manifest, current)
       // Changed owned dependency graph requires install; new Homes may not have node_modules yet.
       const depsChanged = ['dependencies', 'optionalDependencies'].some(section => JSON.stringify(previous.base[section]) !== JSON.stringify(base[section]))
       const hasMemberDeps = Object.keys(base.dependencies ?? {}).length > 0 || Object.keys(base.optionalDependencies ?? {}).length > 0
-      changed ||= depsChanged && (existsSync(modules) || hasMemberDeps)
+      // Bundle-only catalog swaps resolve from the immutable runtime. Refresh the
+      // member install when living-memory was an explicit Home dependency/module.
+      changed ||= (depsChanged && (existsSync(modules) || hasMemberDeps))
+        || (memoryMigrated && (hadLivingDependency || hadLivingModule))
     }
   }
   const policyChanged = updatePackagePolicy(source, target)
