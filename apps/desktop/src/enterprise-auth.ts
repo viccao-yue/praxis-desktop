@@ -2,6 +2,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { enterpriseConnection } from './connection-mode.ts'
+import { EnterpriseTransportError } from './enterprise-transport.ts'
 
 export interface EnterpriseMember {
   id: string
@@ -51,14 +52,20 @@ export class EnterpriseLogin {
     const response = await request(`${backend}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: account.trim(), password }),
       redirect: 'error', signal: AbortSignal.timeout(10_000),
-    }).catch(() => { throw new Error('无法连接企业后台，请检查地址、证书和网络') })
+    }).catch(error => {
+      if (error instanceof EnterpriseTransportError) throw error
+      throw new Error('无法连接企业后台，请检查地址、证书和网络')
+    })
     if (!response.ok) throw await loginFailure(response)
     const result: unknown = await response.json()
     const data = result as { token?: unknown, member?: unknown }
     if (!data || typeof data.token !== 'string' || !/^[A-Za-z0-9_-]{32,256}$/u.test(data.token)) throw new Error('企业登录响应无效')
     try {
       const verified = await request(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${data.token}` }, redirect: 'error', signal: AbortSignal.timeout(10_000) })
-        .catch(() => { throw new Error('无法核验企业账号，请检查后台连接') })
+        .catch(error => {
+          if (error instanceof EnterpriseTransportError) throw error
+          throw new Error('无法核验企业账号，请检查后台连接')
+        })
       if (!verified.ok) throw new Error('企业账号核验失败')
       const actor = member(await verified.json())
       const admitted = data.member as { id?: unknown, organizationId?: unknown }

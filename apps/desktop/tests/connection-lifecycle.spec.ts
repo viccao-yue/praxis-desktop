@@ -31,7 +31,12 @@ vi.mock('electron', async () => {
     BrowserWindow: Window,
     ipcMain: { handle: (name: string, fn: any) => { state.handlers[name] = fn } },
     app: Object.assign(new EventEmitter(), { setActivationPolicy: vi.fn(), setName: vi.fn(), setPath: vi.fn(), requestSingleInstanceLock: () => true, whenReady: async () => {}, quit: vi.fn(), relaunch: vi.fn(), getPath: () => state.userData, getAppPath: () => '/tmp/kaiwu development/app' }),
-    shell: { openExternal: vi.fn() }, dialog: { showErrorBox: vi.fn(), showOpenDialog: vi.fn(async () => ({ canceled: true, filePaths: [] })) },
+    shell: { openExternal: vi.fn() },
+    dialog: {
+      showErrorBox: vi.fn(),
+      showOpenDialog: vi.fn(async () => ({ canceled: true, filePaths: [] })),
+      showMessageBox: vi.fn(async () => ({ response: 0, checkboxChecked: false })),
+    },
     Menu: { buildFromTemplate: (menu: any[]) => { state.menu = menu; return menu }, setApplicationMenu: vi.fn() },
   }
 })
@@ -164,6 +169,31 @@ it('enforces the packaged backend, uses explicitly installed enterprise identity
     expect(await signIn({ sender: state.windows[8].webContents }, { account: 'a', password: 'secret' })).toEqual({ error: expect.stringContaining('不兼容') })
     expect(state.logout).toHaveBeenCalledTimes(4); expect(state.closed).toHaveBeenCalledTimes(2)
     expect(spawn).toHaveBeenCalledTimes(2)
+
+    // Managed addresses cannot be replaced; a failed probe also preserves the original preference.
+    const files = await import('../src/enterprise-connection-file.ts')
+    const transport = await import('../src/enterprise-transport.ts')
+    const trust = { version: 1 as const, backendUrl: 'https://company.test', serverCertificatePem: 'fixture' }
+    const read = vi.spyOn(files, 'readEnterpriseConnectionFile').mockReturnValueOnce({ ...trust, backendUrl: 'https://other.test' }).mockReturnValue(trust)
+    const probe = vi.spyOn(transport, 'probeEnterpriseConnection').mockRejectedValueOnce(new Error('证书不匹配')).mockResolvedValue(undefined)
+    const importFile = async () => {
+      const count = state.windows.length
+      state.windows.at(-1).webContents.emit('will-navigate', { preventDefault() {} }, 'praxis://enterprise-import')
+      await vi.waitFor(() => expect(state.windows).toHaveLength(count + 1))
+    }
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: false, filePaths: ['fixture.praxis'] })
+    vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false })
+    await importFile()
+    expect(dialog.showMessageBox).not.toHaveBeenCalled()
+    expect(probe).not.toHaveBeenCalled()
+    expect(readFileSync(join(state.userData, 'enterprise-backend.json'), 'utf8')).toBe(savedBackend)
+    await importFile()
+    expect(probe).toHaveBeenCalledOnce()
+    expect(readFileSync(join(state.userData, 'enterprise-backend.json'), 'utf8')).toBe(savedBackend)
+    await importFile()
+    expect(JSON.parse(readFileSync(join(state.userData, 'enterprise-backend.json'), 'utf8'))).toEqual({ backend: trust.backendUrl, trust })
+    expect(decodeURIComponent(state.windows.at(-1).url)).toContain('登录企业 Desktop')
+    read.mockRestore(); probe.mockRestore()
   } finally {
     if (resourcesDescriptor) Object.defineProperty(process, 'resourcesPath', resourcesDescriptor)
     else Reflect.deleteProperty(process, 'resourcesPath')
