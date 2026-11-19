@@ -22,6 +22,8 @@ export interface DesktopAccount {
 export class DesktopAuthorityError extends Error {
   constructor(message: string, readonly status?: number) { super(message); }
 }
+export const temporaryDesktopVerification = (error: unknown): boolean =>
+  error instanceof DesktopAuthorityError && error.status === 503;
 const identifier = (value: unknown): value is string => typeof value === 'string' && /^[\w-]{1,160}$/.test(value);
 export function enterpriseOrigin(value: string): string {
   const url = new URL(value);
@@ -64,8 +66,10 @@ export class DesktopAuthority {
       const response = await fetch(new URL(path, binding.authorityUrl), { method, redirect: 'error',
         headers: { authorization: `Bearer ${binding.authorityKey}`, accept: 'application/json', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.any([this.lifetime.signal, AbortSignal.timeout(10_000), ...(signal ? [signal] : [])]) });
-      if (!response.ok) throw new DesktopAuthorityError(`Enterprise Desktop request rejected (${response.status})`, response.status);
+        signal: AbortSignal.any([this.lifetime.signal, AbortSignal.timeout(path === '/auth/me' ? 15_000 : 10_000), ...(signal ? [signal] : [])]) });
+      if (!response.ok) throw new DesktopAuthorityError(response.status === 503
+        ? '企业后台暂不可用，本次操作未通过身份核验，请稍后重试。'
+        : `Enterprise Desktop request rejected (${response.status})`, response.status);
       const value: unknown = await response.json();
       if (path !== '/auth/logout') await this.credentials();
       this.lifetime.signal.throwIfAborted(); signal?.throwIfAborted();

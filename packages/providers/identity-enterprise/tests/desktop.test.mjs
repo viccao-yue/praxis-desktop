@@ -18,7 +18,7 @@ async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), 'enterprise-desktop-plugin-'));
   const config = { authFile: join(directory, 'enterprise-auth.json'), principalId: 'member-a', organizationId: 'org-a', deviceId: 'device-a' };
   const key = randomBytes(32).toString('hex');
-  const state = { active: true, member: 'member-a', organization: 'org-a', device: 'device-a', backend: 'https://company.example', mustChangePassword: false, role: 'MEMBER', lostAck: false, lostDeleteAck: false, posts: [], stored: new Map(), loggedOut: false };
+  const state = { active: true, unavailable: false, member: 'member-a', organization: 'org-a', device: 'device-a', backend: 'https://company.example', mustChangePassword: false, role: 'MEMBER', lostAck: false, lostDeleteAck: false, posts: [], stored: new Map(), loggedOut: false };
   const receipt = (id, record) => ({ version: 1, sessionId: 'desktop-body:fixture', deviceId: config.deviceId, clientSessionId: id,
     revision: record.revision, nextRevision: record.revision + 1, recordCount: record.deleted ? 0 : record.entries.length, deleted: !!record.deleted });
   const server = createServer(async (request, response) => {
@@ -26,6 +26,7 @@ async function fixture() {
     if (request.headers.authorization !== `Bearer ${key}`) return send({}, 401);
     if (request.url === '/auth/logout') { state.loggedOut = true; return send({ local: true }); }
     if (!state.active) return send({}, 401);
+    if (request.url === '/auth/me' && state.unavailable) return send({}, 503);
     if (request.url === '/auth/me') return send({ id: state.member, organizationId: state.organization, deviceId: state.device, backendUrl: state.backend,
       role: state.role, mustChangePassword: state.mustChangePassword, displayName: 'Member A', organizationName: 'Company A', email: 'a@company.example', unexpected: 'not-relayed' });
     if (request.url === '/api/extensions/reports/list') return send({ reports: ['demo'] });
@@ -70,6 +71,11 @@ test('Desktop identity installs a verified fixed member and rejects expiry, role
     const response = await route.fetch(new Request('http://local/api/auth/me'));
     const body = await response.json(); assert.equal(body.desktop, true); assert.equal(body.displayName, 'Member A');
     assert.equal('unexpected' in body, false); assert.equal('authorityKey' in body, false);
+    f.state.unavailable = true;
+    await assert.rejects(ctx.workdshIdentity.resolve(), { status: 503 });
+    assert.equal((await route.fetch(new Request('http://local/api/auth/me'))).status, 503);
+    f.state.unavailable = false;
+    assert.equal((await ctx.workdshIdentity.resolve()).principalId, 'member-a');
     f.state.member = 'member-b';
     await assert.rejects(ctx.workdshIdentity.resolve(), /member changed|expired/);
     assert.throws(() => ctx.workdshIdentity.profile(), /expired/);

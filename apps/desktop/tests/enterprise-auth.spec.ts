@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EnterpriseLogin, startEnterpriseAuthority, type Authority } from '../src/enterprise-auth.ts'
 
 const actor = { id: 'member-a', organizationId: 'org-a', organizationName: 'Example company', displayName: 'A', email: 'a@example.test', role: 'MEMBER', mustChangePassword: false }
@@ -93,6 +93,74 @@ describe('Desktop Main enterprise authority', () => {
     await new Promise(resolve => setImmediate(resolve))
     expect(invalid).toBe(1)
     await expect(login.verify()).rejects.toThrow()
+  })
+  it('denies the current operation during an outage without revoking the session, then revalidates', async () => {
+    let unavailable = false, invalid = 0, writes = 0
+    const request = (async (url: string | URL | Request) => {
+      const path = new URL(String(url)).pathname
+      if (path.endsWith('/login')) return json({ token, member: actor })
+      if (path.endsWith('/me')) return unavailable ? json({}, 503) : json(actor)
+      writes++
+      return json({})
+    }) as typeof fetch
+    const login = await EnterpriseLogin.login('https://company.test', actor.email, 'password', request)
+    bridge = await startEnterpriseAuthority(login, 'device-a', () => {}, () => { invalid++ })
+    const headers = { Authorization: `Bearer ${bridge.key}`, 'Content-Type': 'application/json' }
+    unavailable = true
+    expect((await fetch(`${bridge.url}/api/extensions/reports/list`, { method: 'POST', headers, body: '{}' })).status).toBe(503)
+    expect(writes).toBe(0)
+    expect(invalid).toBe(0)
+    unavailable = false
+    expect((await fetch(`${bridge.url}/auth/me`, { headers })).status).toBe(200)
+  })
+  it('shares only an in-flight membership check and never caches an authorization result', async () => {
+    let checks = 0
+    const request = (async (url: string | URL | Request) => {
+      if (String(url).endsWith('/login')) return json({ token, member: actor })
+      checks++
+      return json(actor)
+    }) as typeof fetch
+    const login = await EnterpriseLogin.login('https://company.test', actor.email, 'password', request)
+    await Promise.all([login.verify(), login.verify(), login.verify()])
+    expect(checks).toBe(2) // Admission and one shared in-flight check.
+    await login.verify()
+    expect(checks).toBe(3)
+  })
+  it('renews before expiry and admits the same Desktop session after the former overnight cutoff', async () => {
+    const hour = 3_600_000, start = Date.now()
+    let now = start, expiresAt = start + 12 * hour, renewals = 0
+    const renewalLimit = start + 72 * hour
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    const request = (async (url: string | URL | Request, init?: RequestInit) => {
+      expect(init?.redirect).toBe('error')
+      const path = new URL(String(url)).pathname
+      if (path.endsWith('/login')) return json({ token, member: actor, expiresAt, renewalLimit })
+      expect(init?.headers).toEqual({ Authorization: `Bearer ${token}` })
+      if (now >= expiresAt) return json({}, 401)
+      if (path.endsWith('/renew')) {
+        expect(init?.method).toBe('POST')
+        expect(init?.body).toBeUndefined()
+        renewals++
+        expiresAt = Math.min(now + 12 * hour, renewalLimit)
+        return json({ expiresAt })
+      }
+      return json(actor)
+    }) as typeof fetch
+    try {
+      const login = await EnterpriseLogin.login('https://company.test', actor.email, 'password', request)
+      now += 7 * hour
+      await login.verify()
+      expect(renewals).toBe(0)
+      now += 2 * hour
+      await Promise.all([login.verify(), login.verify()])
+      expect(renewals).toBe(1)
+      now += 4 * hour
+      expect(await login.verify()).toEqual(actor)
+      expect(renewals).toBe(1)
+      now = expiresAt
+      await expect(login.verify()).rejects.toThrow('401')
+      expect(renewals).toBe(1) // An already expired session is never resurrected.
+    } finally { clock.mockRestore() }
   })
   it('cancels an in-flight authorization check on logout and never forwards its upload afterward', async () => {
     let pause = false

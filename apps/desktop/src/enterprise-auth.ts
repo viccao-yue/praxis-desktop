@@ -14,6 +14,14 @@ export interface EnterpriseMember {
   mustChangePassword: boolean
 }
 
+/** A failed attempt, not a grant to run with stale authorization. */
+export class EnterpriseVerificationUnavailable extends Error {
+  constructor() { super('企业后台暂不可用，本次操作未通过身份核验，请稍后重试。') }
+}
+
+interface DesktopSessionWindow { expiresAt: number, renewalLimit: number }
+const renewalLeadMs = 4 * 60 * 60 * 1000
+
 async function loginFailure(response: Response): Promise<Error> {
   if (response.status === 401) return new Error('账号或密码不正确')
   // kaiwu login stays on this HTTP contract. Admin problem details use `detail`.
@@ -43,8 +51,12 @@ export class EnterpriseLogin {
   #token: string
   #fetch: typeof fetch
   #lifetime = new AbortController()
-  private constructor(origin: string, token: string, actor: EnterpriseMember, request: typeof fetch) {
+  #verification: Promise<EnterpriseMember> | undefined
+  #sessionWindow: DesktopSessionWindow | undefined
+  #renewAfter = 0
+  private constructor(origin: string, token: string, actor: EnterpriseMember, request: typeof fetch, sessionWindow?: DesktopSessionWindow) {
     this.backendUrl = origin; this.#token = token; this.actor = Object.freeze(actor); this.#fetch = request
+    this.#sessionWindow = sessionWindow
   }
   static async login(origin: string, account: string, password: string, request: typeof fetch = fetch): Promise<EnterpriseLogin> {
     const backend = enterpriseConnection(origin).portalOrigin
@@ -58,7 +70,7 @@ export class EnterpriseLogin {
     })
     if (!response.ok) throw await loginFailure(response)
     const result: unknown = await response.json()
-    const data = result as { token?: unknown, member?: unknown }
+    const data = result as { token?: unknown, member?: unknown, expiresAt?: number, renewalLimit?: number }
     if (!data || typeof data.token !== 'string' || !/^[A-Za-z0-9_-]{32,256}$/u.test(data.token)) throw new Error('企业登录响应无效')
     try {
       const verified = await request(`${backend}/api/auth/me`, { headers: { Authorization: `Bearer ${data.token}` }, redirect: 'error', signal: AbortSignal.timeout(10_000) })
@@ -70,7 +82,12 @@ export class EnterpriseLogin {
       const actor = member(await verified.json())
       const admitted = data.member as { id?: unknown, organizationId?: unknown }
       if (!admitted || admitted.id !== actor.id || admitted.organizationId !== actor.organizationId) throw new Error('企业账号归属不一致')
-      return new EnterpriseLogin(backend, data.token, actor, request)
+      // Older backends omit these fields and retain the original non-renewable behavior.
+      const { expiresAt, renewalLimit } = data
+      const sessionWindow = typeof expiresAt === 'number' && Number.isSafeInteger(expiresAt) && expiresAt > 0 &&
+        typeof renewalLimit === 'number' && Number.isSafeInteger(renewalLimit) && renewalLimit >= expiresAt
+        ? { expiresAt, renewalLimit } : undefined
+      return new EnterpriseLogin(backend, data.token, actor, request, sessionWindow)
     } catch (error) {
       // Login already created a backend session, even though local admission has not succeeded.
       let revoked = false
@@ -82,21 +99,50 @@ export class EnterpriseLogin {
       throw error
     }
   }
-  async request(path: string, method = 'GET', body?: string): Promise<Response> {
+  async request(path: string, method = 'GET', body?: string, timeoutMs = 10_000): Promise<Response> {
     if (!this.#token) throw new Error('企业登录已退出')
     this.#lifetime.signal.throwIfAborted()
     return this.#fetch(`${this.backendUrl}${path}`, {
       method, headers: { Authorization: `Bearer ${this.#token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-      ...(body === undefined ? {} : { body }), redirect: 'error', signal: AbortSignal.any([this.#lifetime.signal, AbortSignal.timeout(10_000)]),
+      ...(body === undefined ? {} : { body }), redirect: 'error', signal: AbortSignal.any([this.#lifetime.signal, AbortSignal.timeout(timeoutMs)]),
     })
   }
   cancelRequests(): void { this.#lifetime.abort() }
-  async verify(): Promise<EnterpriseMember> {
-    const response = await this.request('/api/auth/me')
-    if (!response.ok) throw new Error(`企业认证无效 (${response.status})`)
+  verify(): Promise<EnterpriseMember> {
+    if (!this.#verification) {
+      this.#verification = this.verifyCurrent().finally(() => { this.#verification = undefined })
+    }
+    return this.#verification
+  }
+  private async verifyCurrent(): Promise<EnterpriseMember> {
+    const response = await this.verificationRequest('/api/auth/me')
     const current = member(await response.json())
-    if (current.id !== this.actor.id || current.organizationId !== this.actor.organizationId) throw new Error('企业账号归属已改变，请重新登录')
+    this.#lifetime.signal.throwIfAborted()
+    if (current.id !== this.actor.id || current.organizationId !== this.actor.organizationId || current.role !== this.actor.role) throw new Error('企业账号归属或权限已改变，请重新登录')
+    const window = this.#sessionWindow
+    const now = Date.now()
+    if (window && window.expiresAt < window.renewalLimit && window.expiresAt - now <= renewalLeadMs && now >= this.#renewAfter) {
+      const renewed = await this.verificationRequest('/api/auth/desktop/renew', 'POST', 3_000)
+      const data = await renewed.json() as { expiresAt?: number } | null
+      this.#lifetime.signal.throwIfAborted()
+      if (typeof data?.expiresAt !== 'number' || !Number.isSafeInteger(data.expiresAt) ||
+        data.expiresAt < window.expiresAt || data.expiresAt > window.renewalLimit) throw new Error('企业会话续期响应无效，请重新登录')
+      window.expiresAt = data.expiresAt
+      this.#renewAfter = now + 60_000 // Server clock may be behind the Desktop clock.
+    }
     return current
+  }
+  private async verificationRequest(path: string, method = 'GET', timeoutMs = 10_000): Promise<Response> {
+    const response = await this.request(path, method, undefined, timeoutMs).catch(error => {
+      if (this.#lifetime.signal.aborted || error instanceof EnterpriseTransportError) throw error
+      throw new EnterpriseVerificationUnavailable()
+    })
+    if (response.status === 408 || response.status === 429 || response.status >= 500) {
+      await response.body?.cancel().catch(() => {})
+      throw new EnterpriseVerificationUnavailable()
+    }
+    if (!response.ok) throw new Error(`企业认证无效 (${response.status})`)
+    return response
   }
   async logout(): Promise<boolean> {
     const token = this.#token
@@ -140,7 +186,8 @@ export async function startEnterpriseAuthority(login: EnterpriseLogin, deviceId:
     const extension = !url.search && ['GET', 'POST'].includes(req.method ?? '') && /^\/api\/extensions\/[a-z][a-z0-9-]{0,63}\/[a-z][a-z0-9-]{0,63}$/.test(url.pathname)
     if (!auth && !ingest && !collaboration && !extension) { reject(404, 'Unknown Desktop operation'); return }
     let current: EnterpriseMember
-    try { current = await login.verify() } catch {
+    try { current = await login.verify() } catch (error) {
+      if (!closing && error instanceof EnterpriseVerificationUnavailable) { reject(503, error.message); return }
       reject(401, 'Enterprise authorization unavailable')
       if (!closing) { closing = true; login.cancelRequests(); setImmediate(onInvalid) }
       return

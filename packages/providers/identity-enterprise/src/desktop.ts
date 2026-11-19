@@ -3,7 +3,7 @@ import type { EnterpriseService, EnterpriseRequest, IdentityResolutionContext, I
 import type {} from '@deepseek-ai/dsh-client-connection';
 import type {} from '@deepseek-ai/dsh-api-session-controller';
 import { EnterpriseMemberIdentity } from './member-identity.js';
-import { DesktopAuthority, type EnterpriseDesktopConfig } from './desktop-authority.js';
+import { DesktopAuthority, temporaryDesktopVerification, type EnterpriseDesktopConfig } from './desktop-authority.js';
 import { DesktopBodySync, observeDesktopSessions } from './desktop-body-sync.js';
 export type { EnterpriseDesktopConfig } from './desktop-authority.js';
 
@@ -34,7 +34,12 @@ export default class EnterpriseDesktopIdentity extends Service implements Identi
         await this.resolve(undefined, request.signal);
         const account = await this.authority.account(request.signal);
         return Response.json({ ...account, desktop: true }, { headers: { 'cache-control': 'no-store' } });
-      } catch { this.identity?.revoke(); return denied(); }
+      } catch (error) {
+        if (temporaryDesktopVerification(error))
+          return Response.json({ local: true, error: '企业后台暂不可用，请稍后重试。' }, { status: 503, headers: { 'cache-control': 'no-store' } });
+        if (!request.signal.aborted) this.identity?.revoke();
+        return denied();
+      }
     });
     register('/api/auth/logout', ['POST'], async request => {
       try {

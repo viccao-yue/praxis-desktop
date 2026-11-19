@@ -21,10 +21,14 @@ function Account(_props: PropsRuntime<'settings.section'>) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [unavailable, setUnavailable] = useState(false);
   useEffect(() => {
     const lifetime = new AbortController();
-    const load = () => fetch('/api/auth/me', { credentials: 'same-origin', signal: AbortSignal.any([lifetime.signal, AbortSignal.timeout(8000)]) })
+    const load = () => fetch('/api/auth/me', { credentials: 'same-origin', signal: AbortSignal.any([lifetime.signal, AbortSignal.timeout(25_000)]) })
       .then(async response => {
+        if (lifetime.signal.aborted) return;
+        setUnavailable(response.status === 503);
+        if (response.status === 503) { setError('企业后台暂不可用，正在等待重新核验。'); return; }
         if (response.status === 404 || response.status === 401) { setDesktop(true); setAccount(undefined); setError(''); return; }
         const value = await response.json() as AccountStatus & { local?: boolean };
         if (value.local || value.desktop) setDesktop(true);
@@ -84,8 +88,8 @@ function Account(_props: PropsRuntime<'settings.section'>) {
         </dl>
       </div>
       <button style={{ ...button, marginTop: 16 }} disabled={busy} onClick={() => void logout()}>{busy ? '正在退出…' : '退出企业账号'}</button>
-    </> : <div><p>企业插件已安装。连接公司后台并登录后，才会启用企业账号和权限。个人数据不会自动复制到企业空间。</p><button type="button" style={button} onClick={() => window.location.assign('praxis://entry')}>连接企业</button></div>}
-    {desktop && account && <section aria-label="企业正文同步" style={{ marginTop: 24 }}>
+    </> : unavailable ? null : <div><p>企业插件已安装。连接公司后台并登录后，才会启用企业账号和权限。个人数据不会自动复制到企业空间。</p><button type="button" style={button} onClick={() => window.location.assign('praxis://entry')}>连接企业</button></div>}
+    {desktop && account && !unavailable && <section aria-label="企业正文同步" style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: 18 }}>企业正文同步</h2>
       <p style={{ lineHeight: 1.7, color: 'var(--dsw-alias-label-secondary)' }}>同步用户与助手已显示的文字；不上传思考、工具轨迹或附件。失败时本地记录保留，可重试。已同步正文由本组织有权限的管理员只读查看。</p>
       <button style={button} disabled={busy} onClick={() => void syncAction('retry')}>重试同步</button>

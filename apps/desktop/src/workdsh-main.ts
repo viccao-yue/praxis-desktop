@@ -13,12 +13,12 @@ import {
 import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { connectionEntryHtml, enterpriseLoginHtml, connectionLoadingHtml } from './connection-entry.ts'
+import { connectionEntryHtml, enterpriseLoginHtml, connectionLoadingHtml, workspaceRecoveryHtml } from './connection-entry.ts'
 import { connectionPartition, enterpriseConnection, isReturnToEntryUrl, type DesktopConnection } from './connection-mode.ts'
 import { readBackendPreference, readEnterpriseConnectionFile, shouldRememberManualBackend, writeBackendPreference, type BackendPreference } from './enterprise-connection-file.ts'
 import { createPinnedEnterpriseRequest, probeEnterpriseConnection } from './enterprise-transport.ts'
 import { parseDeploymentConfig } from './deployment-config.ts'
-import { EnterpriseLogin, startEnterpriseAuthority, type Authority } from './enterprise-auth.ts'
+import { EnterpriseLogin, EnterpriseVerificationUnavailable, startEnterpriseAuthority, type Authority } from './enterprise-auth.ts'
 import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, fixMineruDropSession, hideEmailWorkbench, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from './local-runtime.ts'
 import { manageCommand } from './command-management.ts'
 import { createRuntimeOutputRedactor, redactRuntimeOutput, runtimeFailureDetail, runtimeFailureLog } from './runtime-diagnostics.ts'
@@ -34,6 +34,7 @@ const READY_PATTERN = /dsh web:\s+(http:\/\/127\.0\.0\.1:\d+\/?\?token=[^\s]+)/u
 
 let runtime: ChildProcess | undefined
 let runtimeStarting = false
+let runtimeCleanupPending = false
 let window: BrowserWindow | undefined
 let quitting = false
 let switching = false
@@ -231,7 +232,7 @@ function rememberCommandSpace(home?: string): void {
 
 async function startRuntime(home: string, connection: DesktopConnection, patches: string[] = [], existingHome = false): Promise<void> {
   rememberCommandSpace(home)
-  if (quitRequested) throw new Error('启动已取消')
+  if (quitRequested || runtimeCleanupPending) throw new Error('启动已取消')
   // Survive plugin reinstall / market updates that restore the mail sidebar entry.
   hideEmailWorkbench(home)
   fixMineruDropSession(home, bundledProfileDirectory())
@@ -265,7 +266,7 @@ async function startRuntime(home: string, connection: DesktopConnection, patches
   const consume = (chunk: Buffer): void => {
     const text = chunk.toString('utf8')
     stdoutRedactor.push(chunk)
-    if (ready || switching || runtime !== child) return
+    if (ready || switching || runtimeCleanupPending || runtime !== child) return
     output = `${output}${text}`.slice(-16_384)
     const match = READY_PATTERN.exec(output)
     if (match?.[1] !== undefined) {
@@ -289,10 +290,10 @@ async function startRuntime(home: string, connection: DesktopConnection, patches
   child.stderr.on('data', chunk => stderrRedactor.push(chunk))
   child.stderr.once('end', () => stderrRedactor.end())
   child.once('error', cause => {
-    if (!quitting && runtime === child) { dialog.showErrorBox('启动失败', redactRuntimeOutput(cause.message)); void returnToEntry() }
+    if (!quitting && !runtimeCleanupPending && runtime === child) { dialog.showErrorBox('启动失败', redactRuntimeOutput(cause.message)); void returnToEntry() }
   })
   child.once('exit', code => {
-    if (runtime !== child) return
+    if (runtime !== child || runtimeCleanupPending) return
     void cleanOwnedProcessTree(child).then(() => {
       if (runtime === child) { runtime = undefined; runtimeStarting = false }
       if (!quitting && !switching) {
@@ -304,13 +305,13 @@ async function startRuntime(home: string, connection: DesktopConnection, patches
       dialog.showErrorBox('本机运行失败，进程清理未确认', failureDetail(code, true))
     })
   })
-  const readyTimeout = setTimeout(() => { if (!ready && runtime === child) { dialog.showErrorBox('启动超时', '官方 DSH 尚未就绪，已停止本机进程'); void returnToEntry() } }, 90_000)
+  const readyTimeout = setTimeout(() => { if (!ready && !runtimeCleanupPending && runtime === child) { dialog.showErrorBox('启动超时', '官方 DSH 尚未就绪，正在停止本机进程'); void returnToEntry() } }, 90_000)
   child.once('exit', () => clearTimeout(readyTimeout))
 }
 
 function stopRuntime(): void {
   quitting = true
-  if (runtime !== undefined) void cleanOwnedProcessTree(runtime)
+  if (runtime !== undefined) void cleanOwnedProcessTree(runtime).catch(() => {})
   runtime = undefined
   runtimeStarting = false
 }
@@ -325,16 +326,23 @@ async function leaveWorkspace(): Promise<void> {
   const child = runtime
   let processError: unknown
   if (child) {
-    try { await stopOwnedProcess(child) }
+    runtimeCleanupPending = true
+    try {
+      await stopOwnedProcess(child)
+      if (runtime === child) { runtime = undefined; runtimeStarting = false }
+      runtimeCleanupPending = false
+    }
     catch (error) { processError = error }
-    finally { if (runtime === child) { runtime = undefined; runtimeStarting = false } }
   }
   enterprise = undefined
   rememberCommandSpace()
   if (session) {
     if (session.authFile) rmSync(session.authFile, { force: true })
     const revoked = await session.login.logout()
-    if (!revoked) dialog.showErrorBox('本机已退出', '本机企业运行和登录已停止；后台连接失败，远端撤销尚未确认。')
+    if (!revoked) {
+      if (runtimeCleanupPending) dialog.showErrorBox('远端撤销未确认', '企业操作已禁用；旧工作区停止和后台撤销尚未确认。')
+      else dialog.showErrorBox('本机已退出', '本机企业运行和登录已停止；后台连接失败，远端撤销尚未确认。')
+    }
     if (page && !page.isDestroyed()) {
       await page.webContents.session.closeAllConnections()
       await page.webContents.session.clearStorageData()
@@ -350,10 +358,10 @@ async function leaveWorkspace(): Promise<void> {
 
 async function returnToEntry(): Promise<void> {
   if (quitting) return
-  if (switching) { returnRequested = true; return }
+  if (switching) { if (!runtimeCleanupPending) returnRequested = true; return }
   switching = true
   try { await leaveWorkspace(); showConnectionEntry() }
-  catch (error) { dialog.showErrorBox('暂时无法切换', error instanceof Error ? error.message : '请稍后重试') }
+  catch (error) { showConnectionFailure(error) }
   finally { endSwitch() }
 }
 
@@ -375,6 +383,13 @@ function showConnectionEntry(): void {
   connectEntryNavigation(window!)
 }
 
+function showConnectionFailure(error: unknown): void {
+  const detail = error instanceof Error ? redactRuntimeOutput(error.message) : '请稍后重试'
+  if (!runtimeCleanupPending) { dialog.showErrorBox('暂时无法切换', detail); showConnectionEntry(); return }
+  openWindow('data:text/html;charset=utf-8,' + encodeURIComponent(workspaceRecoveryHtml(detail)), { mode: 'personal' }, true)
+  connectEntryNavigation(window!)
+}
+
 function showEnterpriseLogin(backend: string): void {
   const connection = enterpriseConnection(backend)
   pendingConnection = connection
@@ -387,6 +402,11 @@ function connectEntryNavigation(entry: BrowserWindow): void {
   entry.webContents.on('will-navigate', (event, target) => {
     event.preventDefault()
     if (switching || window !== entry || !entrySurface) return
+    if (runtimeCleanupPending) {
+      if (target === 'praxis://retry-cleanup') void returnToEntry()
+      if (target === 'praxis://quit') app.quit()
+      return
+    }
     void (async () => {
       switching = true
       try {
@@ -485,7 +505,14 @@ async function activateEnterprise(existingHome: boolean): Promise<void> {
     if (!selected.dsh.profile.bundles.includes(name)) selected.dsh.profile.bundles.push(name)
   }
   writeFileSync(manifest, JSON.stringify(selected, null, 2) + '\n', { mode: 0o600 })
-  session.authority = await startEnterpriseAuthority(session.login, session.deviceId, () => { void returnToEntry() }, () => { void returnToEntry() })
+  const invalid = (message: string): void => {
+    if (enterprise !== session || switching || quitting) return
+    dialog.showErrorBox('企业认证不可用', message)
+    void returnToEntry()
+  }
+  session.authority = await startEnterpriseAuthority(session.login, session.deviceId, () => { void returnToEntry() }, () => {
+    invalid('企业登录已失效或权限已变更，请重新登录。若后台证书已更新，请联系管理员核对连接文件。')
+  })
   // Record before writing either file, so a partial patch failure is also cleaned.
   session.authFile = join(session.home, 'enterprise-auth.json')
   const patch = desktopEnterprisePatch(session.home, session.authority, session.login.actor, session.login.backendUrl, session.deviceId, pluginNames.includes('workdsh-plugin-enterprise-collaboration'))
@@ -502,16 +529,16 @@ async function activateEnterprise(existingHome: boolean): Promise<void> {
       // only records the connection package and does not carry its node_modules.
       const current=installedEnterprisePlugins(join(session.home,'profiles',PROFILE_NAME),JSON.parse(readFileSync(join(bundledProfileDirectory(),'node_modules','@deepseek-ai','dsh','package.json'),'utf8')).version)
       if(pluginNames.some(name=>!current.includes(name)))throw new Error('企业插件已卸载，请重新安装后登录')
-    }).catch(() => {
-      dialog.showErrorBox('企业认证不可用', '企业账号已过期、被撤销、后台不可达或企业插件已卸载。本机企业运行将停止，请检查后重新登录。')
-      void returnToEntry()
+    }).catch(error => {
+      if (error instanceof EnterpriseVerificationUnavailable) return // Keep the workspace; the next verification must succeed before admitting work.
+      invalid(error instanceof Error ? redactRuntimeOutput(error.message) : '企业登录已失效，请重新登录。')
     }).finally(() => { verifying = false })
   }, 30_000)
 }
 
 function installLoginHandlers(): void {
   ipcMain.handle('kaiwu:enterprise-login', async (event, input: unknown) => {
-    if (!entrySurface || event.sender !== window?.webContents || switching || !pendingConnection || enterprise) return { error: '此页面不能发起企业登录' }
+    if (!entrySurface || event.sender !== window?.webContents || switching || runtimeCleanupPending || !pendingConnection || enterprise) return { error: '此页面不能发起企业登录' }
     switching = true
     let admittedLogin: EnterpriseLogin | undefined
     try {
@@ -529,7 +556,10 @@ function installLoginHandlers(): void {
       return {}
     } catch (error) {
       const message = error instanceof Error ? error.message : '企业登录失败'
-      if (enterprise) { await leaveWorkspace(); showConnectionEntry(); dialog.showErrorBox('无法进入企业', message) }
+      if (enterprise) {
+        try { await leaveWorkspace(); showConnectionEntry(); dialog.showErrorBox('无法进入企业', message) }
+        catch (cleanupError) { showConnectionFailure(cleanupError) }
+      }
       else if (admittedLogin && !await admittedLogin.logout()) dialog.showErrorBox('企业启动未完成', '本机未进入企业运行；后台连接失败，远端登录撤销尚未确认。')
       return { error: message }
     } finally { endSwitch() }

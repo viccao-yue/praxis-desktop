@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { ActorContext, IdentityProfile, IdentityResolutionContext, IdentityService, Membership } from 'workdsh-contracts';
 import type { VerifiedMember } from './request-context.js';
+import { temporaryDesktopVerification } from './desktop-authority.js';
 
 /** Internal Agent-owned identity. The trusted verifier retains authentication, not this DTO. */
 export class EnterpriseMemberIdentity implements IdentityService {
@@ -34,7 +35,7 @@ export class EnterpriseMemberIdentity implements IdentityService {
     this.check(); signal?.throwIfAborted();
     let current: VerifiedMember;
     try { current = await this.verify(signal); }
-    catch (error) { if (!signal?.aborted) this.revoke(); throw error; }
+    catch (error) { if (!signal?.aborted && !temporaryDesktopVerification(error)) this.revoke(); throw error; }
     signal?.throwIfAborted(); this.check();
     if (!current.active || current.principalId !== this.member.principalId ||
         current.organizationId !== this.member.organizationId || current.role !== this.member.role) {

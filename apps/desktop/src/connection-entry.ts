@@ -171,3 +171,16 @@ export function connectionLoadingHtml(kind: ConnectionLoadingKind, title?: strin
       </div>`
   return documentShell('开物Praxis', loadingCsp, stage)
 }
+
+export function workspaceRecoveryHtml(detail: string): string {
+  return documentShell('开物Praxis', entryCsp, `
+    <div class="screen is-active">
+      <div class="head">
+        <h2>旧工作区尚未确认停止</h2>
+        <p>${escapeHtml(detail)}</p>
+        <p>请重试清理。确认停止前不会启动新的工作区。</p>
+      </div>
+      <a class="submit" href="praxis://retry-cleanup">重试清理</a>
+      <a class="back" href="praxis://quit">退出应用</a>
+    </div>`)
+}
