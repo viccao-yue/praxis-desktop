@@ -74,7 +74,7 @@ export function connectionEntryHtml(portal: string, managed: boolean = false, en
     ? `<div class="field" id="server-field"><label>企业后台</label><p class="managed-portal">${escaped}</p></div>`
     : `<div class="field" id="server-field"><label for="portal">企业后台地址</label><div class="control"><input class="mono" id="portal" name="portal" type="url" required placeholder="https://企业地址" value="${escaped}" autocomplete="url" spellcheck="false"></div></div>`
   const enterpriseAction = enterpriseAvailable
-    ? `<form class="enterprise-continue" action="praxis://enterprise" method="get">${portalField}<button class="submit" type="submit">下一步</button></form>`
+    ? `<form class="enterprise-continue" action="praxis://enterprise" method="get">${portalField}<button class="submit" type="submit">下一步</button><a class="back" href="praxis://enterprise-import">导入企业连接文件</a></form>`
     : `<div class="enterprise-continue">${portalField}<button class="submit" type="button" disabled>请先安装企业账号插件</button><p class="plugin-hint">进入个人空间，在插件管理中安装企业插件，再从工作区菜单切换到企业登录。</p></div>`
   const enterpriseOption = enterpriseAvailable
     ? `<label class="option" data-mode="enterprise"><input type="radio" name="mode" value="enterprise"><span class="txt"><strong>企业登录</strong><small>连接企业后台，使用企业空间与统一权限</small></span><span class="radio" aria-hidden="true"></span></label>`

@@ -15,6 +15,8 @@ import { isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { connectionEntryHtml, enterpriseLoginHtml, connectionLoadingHtml } from './connection-entry.ts'
 import { connectionPartition, enterpriseConnection, isReturnToEntryUrl, type DesktopConnection } from './connection-mode.ts'
+import { readBackendPreference, readEnterpriseConnectionFile, shouldRememberManualBackend, writeBackendPreference, type BackendPreference } from './enterprise-connection-file.ts'
+import { createPinnedEnterpriseRequest, probeEnterpriseConnection } from './enterprise-transport.ts'
 import { parseDeploymentConfig } from './deployment-config.ts'
 import { EnterpriseLogin, startEnterpriseAuthority, type Authority } from './enterprise-auth.ts'
 import { desktopEnterprisePatch, enterpriseEnvironment, enterpriseSpace, fixMineruDropSession, hideEmailWorkbench, materializeRuntimeProfile, markProfileUpdated, officialLauncher, officialHostLauncher } from './local-runtime.ts'
@@ -41,6 +43,7 @@ let installer: ChildProcess | undefined
 const enterpriseWindows = new Set<BrowserWindow>()
 let enterprisePortal = process.env.WORKDSH_ENTERPRISE_PORTAL ?? ''
 let managedBackend: string | undefined
+let backendPreference: BackendPreference | undefined
 let entrySurface = false
 let pendingConnection: ReturnType<typeof enterpriseConnection> | undefined
 let enterprise: { login: EnterpriseLogin, root: string, home: string, deviceId: string, authority?: Authority, authFile?: string } | undefined
@@ -361,14 +364,22 @@ function endSwitch(): void {
 }
 
 function savedBackendFile(): string { return join(app.getPath('userData'), 'enterprise-backend.json') }
-function rememberBackend(backend: string): void {
-  if (managedBackend) return
+function saveBackend(preference: BackendPreference): void {
   mkdirSync(app.getPath('userData'), { recursive: true })
-  writeFileSync(savedBackendFile(), JSON.stringify({ backend }), { mode: 0o600 })
+  writeBackendPreference(savedBackendFile(), preference)
+  backendPreference = preference
 }
 
 function showConnectionEntry(): void {
   openWindow('data:text/html;charset=utf-8,' + encodeURIComponent(connectionEntryHtml(enterprisePortal, managedBackend !== undefined, enterprisePluginAvailable())), { mode: 'personal' }, true)
+  connectEntryNavigation(window!)
+}
+
+function showEnterpriseLogin(backend: string): void {
+  const connection = enterpriseConnection(backend)
+  pendingConnection = connection
+  enterprisePortal = connection.portalOrigin
+  openWindow('data:text/html;charset=utf-8,' + encodeURIComponent(enterpriseLoginHtml(enterprisePortal)), { mode: 'personal' }, true)
   connectEntryNavigation(window!)
 }
 
@@ -384,11 +395,30 @@ function connectEntryNavigation(entry: BrowserWindow): void {
         if (command.hostname === 'enterprise') {
           if (enterprise) throw new Error('请先退出当前企业账号再修改后台地址')
           const connection = enterpriseConnection(managedBackend ?? command.searchParams.get('portal') ?? '')
-          pendingConnection = connection
-          enterprisePortal = connection.portalOrigin
-          rememberBackend(enterprisePortal)
-          openWindow('data:text/html;charset=utf-8,' + encodeURIComponent(enterpriseLoginHtml(enterprisePortal)), { mode: 'personal' }, true)
-          connectEntryNavigation(window!)
+          if (shouldRememberManualBackend(connection.portalOrigin, backendPreference, managedBackend)) saveBackend({ backend: connection.portalOrigin })
+          showEnterpriseLogin(connection.portalOrigin)
+        } else if (command.hostname === 'enterprise-import') {
+          if (enterprise || pendingConnection || !enterprisePluginAvailable()) return
+          const selected = await dialog.showOpenDialog(entry, {
+            title: '导入企业连接文件',
+            properties: ['openFile'],
+            filters: [{ name: '企业连接文件', extensions: ['praxis'] }],
+          })
+          if (selected.canceled || !selected.filePaths[0]) return
+          const trust = readEnterpriseConnectionFile(selected.filePaths[0])
+          if (managedBackend && trust.backendUrl !== managedBackend)
+            throw new Error('连接文件地址与公司预置地址不一致，请联系管理员')
+          const confirmation = await dialog.showMessageBox(entry, {
+            type: 'question', title: '确认企业连接', buttons: ['取消', '确认并验证'], defaultId: 0, cancelId: 0,
+            message: trust.backendUrl,
+            detail: '只导入由管理员通过可信渠道发来的文件。确认后会验证后台身份，验证成功才替换已有配置。',
+            noLink: true,
+          })
+          if (confirmation.response !== 1 || quitRequested) return
+          await probeEnterpriseConnection(trust)
+          if (quitRequested || window !== entry || entry.isDestroyed()) return
+          saveBackend({ backend: trust.backendUrl, trust })
+          showEnterpriseLogin(trust.backendUrl)
         } else if (command.hostname === 'personal') {
           if (enterprise) await leaveWorkspace()
           const home = runtimeHome()
@@ -487,7 +517,10 @@ function installLoginHandlers(): void {
     try {
       const value = input as { account?: unknown, password?: unknown }
       if (!value || typeof value.account !== 'string' || typeof value.password !== 'string') throw new Error('请输入账号和密码')
-      const login = await EnterpriseLogin.login(pendingConnection.portalOrigin, value.account, value.password)
+      const origin = pendingConnection.portalOrigin
+      const trust = backendPreference?.trust
+      const transport = trust?.backendUrl === origin ? createPinnedEnterpriseRequest(trust) : undefined
+      const login = await EnterpriseLogin.login(origin, value.account, value.password, transport)
       admittedLogin = login
       const space = enterpriseSpace(app.getPath('userData'), login.backendUrl, login.actor)
       enterprise = { login, ...space }
@@ -580,8 +613,11 @@ if (!app.requestSingleInstanceLock()) {
       managedBackend = parseDeploymentConfig(JSON.parse(readFileSync(deploymentFile, 'utf8'))).enterprise?.backendUrl
       if (managedBackend) enterprisePortal = managedBackend
     }
-    if (!enterprisePortal && existsSync(savedBackendFile())) {
-      try { enterprisePortal = enterpriseConnection(JSON.parse(readFileSync(savedBackendFile(), 'utf8')).backend).portalOrigin } catch { /* stale invalid preference is not trusted */ }
+    if (existsSync(savedBackendFile())) {
+      try {
+        backendPreference = readBackendPreference(savedBackendFile())
+        if (!enterprisePortal) enterprisePortal = backendPreference.backend
+      } catch { /* stale invalid preference is not trusted */ }
     }
     installConnectionMenu()
     installLoginHandlers()
