@@ -5,11 +5,22 @@ import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { parseEnterpriseConnectionFile, readBackendPreference, readEnterpriseConnectionFile, writeBackendPreference } from '../src/enterprise-connection-file.ts'
+import { parseEnterpriseConnectionFile, readBackendPreference, readEnterpriseConnectionFile, shouldRememberManualBackend, writeBackendPreference } from '../src/enterprise-connection-file.ts'
 import { EnterpriseLogin } from '../src/enterprise-auth.ts'
 import { createPinnedEnterpriseRequest, probeEnterpriseConnection } from '../src/enterprise-transport.ts'
 
 const opensslAvailable = spawnSync('openssl', ['version']).status === 0
+it('preserves previously imported trust when the user tries another manual address', () => {
+  const backend = 'https://company.test'
+  const other = 'https://other.test'
+  expect(shouldRememberManualBackend(other, {
+    backend, trust: { version: 1, backendUrl: backend, serverCertificatePem: 'fixture' },
+  })).toBe(false)
+  expect(shouldRememberManualBackend(other, { backend })).toBe(true)
+  expect(shouldRememberManualBackend(backend, { backend })).toBe(false)
+  expect(shouldRememberManualBackend(other, undefined, backend)).toBe(false)
+})
+
 describe.skipIf(!opensslAvailable)('offline enterprise TLS', () => {
   let dir: string
   type Tls = { key: string, cert: string }

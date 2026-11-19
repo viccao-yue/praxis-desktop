@@ -13,6 +13,11 @@ export interface BackendPreference {
   trust?: EnterpriseConnectionFile
 }
 
+/** A manual address may be used for the current login, but only another verified import can replace saved trust. */
+export function shouldRememberManualBackend(backend: string, saved?: BackendPreference, managed?: string): boolean {
+  return !managed && !saved?.trust && saved?.backend !== backend
+}
+
 const maxFileSize = 24 * 1024
 const certificatePem = /^-----BEGIN CERTIFICATE-----\r?\n(?:[A-Za-z0-9+/=]+\r?\n)+-----END CERTIFICATE-----(?:\r?\n)?$/
 

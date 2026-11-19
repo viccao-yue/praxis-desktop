@@ -15,7 +15,7 @@ import { isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { connectionEntryHtml, enterpriseLoginHtml, connectionLoadingHtml } from './connection-entry.ts'
 import { connectionPartition, enterpriseConnection, isReturnToEntryUrl, type DesktopConnection } from './connection-mode.ts'
-import { readBackendPreference, readEnterpriseConnectionFile, writeBackendPreference, type BackendPreference } from './enterprise-connection-file.ts'
+import { readBackendPreference, readEnterpriseConnectionFile, shouldRememberManualBackend, writeBackendPreference, type BackendPreference } from './enterprise-connection-file.ts'
 import { createPinnedEnterpriseRequest, probeEnterpriseConnection } from './enterprise-transport.ts'
 import { parseDeploymentConfig } from './deployment-config.ts'
 import { EnterpriseLogin, startEnterpriseAuthority, type Authority } from './enterprise-auth.ts'
@@ -395,7 +395,7 @@ function connectEntryNavigation(entry: BrowserWindow): void {
         if (command.hostname === 'enterprise') {
           if (enterprise) throw new Error('请先退出当前企业账号再修改后台地址')
           const connection = enterpriseConnection(managedBackend ?? command.searchParams.get('portal') ?? '')
-          if (!managedBackend && backendPreference?.backend !== connection.portalOrigin) saveBackend({ backend: connection.portalOrigin })
+          if (shouldRememberManualBackend(connection.portalOrigin, backendPreference, managedBackend)) saveBackend({ backend: connection.portalOrigin })
           showEnterpriseLogin(connection.portalOrigin)
         } else if (command.hostname === 'enterprise-import') {
           if (enterprise || pendingConnection || !enterprisePluginAvailable()) return
