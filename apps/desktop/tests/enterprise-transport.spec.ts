@@ -33,11 +33,18 @@ describe.skipIf(!opensslAvailable)('offline enterprise TLS', () => {
     const cert = join(dir, `${name}.pem`)
     const csr = join(dir, `${name}.csr`)
     const config = join(dir, `${name}.cnf`)
-    writeFileSync(config, `[req]\ndistinguished_name=dn\nx509_extensions=ext\n[dn]\n[ext]\nsubjectAltName=${san}\n`)
+    writeFileSync(config, `[req]\ndistinguished_name=dn\nx509_extensions=ext\n[dn]\n[ext]\nsubjectAltName=${san}\n`
+      + (old ? `[ca]\ndefault_ca=fixture_ca\n[fixture_ca]\ndatabase=${name}.index\nserial=${name}.serial\nnew_certs_dir=.\ndefault_md=sha256\npolicy=fixture_policy\n[fixture_policy]\ncommonName=supplied\n` : ''))
     const req = ['req', '-config', config, '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=praxis-test', '-keyout', key]
     if (old) {
       execFileSync('openssl', [...req, '-new', '-out', csr], { stdio: 'pipe' })
-      execFileSync('openssl', ['x509', '-req', '-in', csr, '-signkey', key, '-days', '0', '-extfile', config, '-extensions', 'ext', '-out', cert], { stdio: 'pipe' })
+      writeFileSync(join(dir, `${name}.index`), '')
+      writeFileSync(join(dir, `${name}.serial`), '01\n')
+      // Explicit historical dates work even on OpenSSL versions that reject -days 0.
+      execFileSync('openssl', [
+        'ca', '-config', config, '-batch', '-selfsign', '-keyfile', key, '-in', csr,
+        '-startdate', '20200101000000Z', '-enddate', '20200102000000Z', '-extensions', 'ext', '-notext', '-out', cert,
+      ], { cwd: dir, stdio: 'pipe' })
     } else {
       execFileSync('openssl', [...req, '-x509', '-days', '1', '-out', cert], { stdio: 'pipe' })
     }
