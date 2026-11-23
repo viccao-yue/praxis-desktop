@@ -2,7 +2,7 @@
   "name": "dsh-plugin-desktop",
   "version": "3.1.0",
   "description": "kaiwu Electron carrier for a pinned DeepSeek Harness runtime Profile",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "publishConfig": {
     "registry": "https://registry.npmjs.org"
   },

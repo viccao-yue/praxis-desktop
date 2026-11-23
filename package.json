@@ -2,7 +2,7 @@
   "name": "workdsh-desktop-workspace",
   "private": true,
   "description": "DSH Desktop product workspace",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "packageManager": "yarn@4.18.0",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
