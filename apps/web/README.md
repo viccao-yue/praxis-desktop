@@ -1,4 +1,3 @@
-<p align="center"><img src="assets/brand/kaiwu-logo.svg" width="104" alt="kaiwu"></p>
 <h1 align="center">kaiwu</h1>
 <p align="center"><strong>Give AI a job. Watch it work. Open the result.</strong></p>
 <p align="center">English · <a href="README.zh-CN.md">简体中文</a></p>
@@ -19,8 +18,6 @@ kaiwu is an open-source AI workspace built on the official DeepSeek Harness. Org
 
 Desktop installers bundle the kaiwu Profile and the official DeepSeek Harness runtime pinned by this repository, including Node and Python. The task browser reuses Electron; no second browser binary is bundled. Checksums and exact asset names are on each [GitHub Release](https://github.com/viccao-yue/Praxis/releases).
 
-![kaiwu project home — full application in dark mode](assets/screenshots/kaiwu-projects-dark.png)
-
 ## What you can do
 
 | Area | Capabilities |
@@ -33,26 +30,6 @@ Desktop installers bundle the kaiwu Profile and the official DeepSeek Harness ru
 | Activity | Inspect native task and child-agent activity; an expert-team label alone does not mean multiple agents are executing. |
 
 Native attachment, input and send behavior remain owned by Harness. In Desktop, Agent browser work appears in the right sidebar on the same Electron page used by its tools.
-
-## Screenshots
-
-Full application captures from a local workspace; example projects, installed skills and account figures are not bundled sample data.
-
-<details>
-<summary>Light theme — project home</summary>
-
-![kaiwu project home — full application in light mode](assets/screenshots/kaiwu-projects-light.png)
-
-</details>
-
-<details>
-<summary>Office example — conversation and HTML deliverable</summary>
-
-![Conversation with an HTML analysis dashboard](assets/screenshots/kaiwu-html-dashboard-preview.png)
-
-Local preview showing the artifact workflow; it is not an acceptance result for every document format.
-
-</details>
 
 ## Quick start
 
