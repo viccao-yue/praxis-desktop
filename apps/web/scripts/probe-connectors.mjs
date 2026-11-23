@@ -11,12 +11,13 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as Connectors from '../../../packages/plugins/connectors/dist/index.js';
+import { executeOneTool } from '../../../packages/test-support/execute-one-tool.mjs';
 
 const ctx = new Context();
 const signal = new AbortController().signal;
 let sequence = 0;
 const execute = async (name, arguments_) => {
-  const output = await ctx.tools.execute({ name, arguments: arguments_, callId: `connector-probe-${++sequence}`, agent: { id: 'connector-probe' }, signal });
+  const output = await executeOneTool(ctx.tools, { name, arguments: arguments_, callId: `connector-probe-${++sequence}`, agent: { id: 'connector-probe' }, signal });
   if (output.isError) throw output.error;
   return output.value;
 };
@@ -88,7 +89,7 @@ try {
 
   const disabled = await manager.setEnabled('workdsh-example', false);
   if (disabled.state !== 'disabled' || tools.get('mcp__workdsh-example__search_catalog')) throw new Error('Disabling did not unregister MCP tools.');
-  const unknown = await tools.execute({ name: 'mcp__workdsh-example__search_catalog', arguments: {}, callId: 'connector-disabled', agent: { id: 'connector-probe' }, signal });
+  const unknown = await executeOneTool(tools, { name: 'mcp__workdsh-example__search_catalog', arguments: {}, callId: 'connector-disabled', agent: { id: 'connector-probe' }, signal });
   if (!unknown.isError) throw new Error('Disabled MCP tool remained callable.');
 
   const restored = await manager.setEnabled('workdsh-example', true);

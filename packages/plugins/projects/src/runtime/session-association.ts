@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
-import type {} from '@deepseek-ai/dsh-api-session-controller';
 import { assertActorContext } from 'workdsh-contracts';
+import type { SessionId } from '@deepseek-ai/dsh-session';
+import { readSessionCold } from './session-cold-inspect.js';
 import type { ActorContext, IdentityService, RuntimeBindingService, SessionOwnerBinding } from 'workdsh-contracts';
 import type { ProjectTaskLink } from 'workdsh-contracts/projects';
 
@@ -14,7 +15,7 @@ export async function assertSessionAssociationAccess(ctx: Context, actor: ActorC
   const access = ctx.get('workdshAccess') as RuntimeBindingService | undefined;
   const identity = ctx.get('workdshIdentity') as IdentityService | undefined;
   const controller = ctx.get('sessionController') as Context['sessionController'] | undefined;
-  const protectedSessions = ctx.get('workdshSessionAccess') as Pick<Context['sessionController'], 'inspect'> | undefined;
+  const protectedSessions = ctx.get('workdshSessionAccess') as Parameters<typeof readSessionCold>[1];
   if (!access || !identity || !controller) throw new Error('projects/session-authority-unavailable');
   const resolved = await identity.resolve({ sessionId }, signal);
   if (resolved.principalId !== actor.principalId || resolved.organizationId !== actor.organizationId
@@ -22,8 +23,7 @@ export async function assertSessionAssociationAccess(ctx: Context, actor: ActorC
   const prior = access.sessionOwner(sessionId);
   if (prior && !ownedBy(prior, actor)) throw new Error('projects/session-access-denied');
   if (!prior && identity.profile().organization.kind !== 'personal' && !protectedSessions) throw new Error('projects/session-access-denied');
-  const inspector = protectedSessions ?? controller;
-  try { await inspector.inspect(sessionId as Parameters<typeof controller.inspect>[0], signal); }
+  try { await readSessionCold(controller, protectedSessions, sessionId as SessionId, signal); }
   catch (cause) { signal?.throwIfAborted(); throw new Error('projects/session-unavailable', { cause }); }
   signal?.throwIfAborted();
   const current = await identity.resolve({ sessionId }, signal);

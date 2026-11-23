@@ -5,6 +5,8 @@
  * Account onboarding skips the forced sign-in step so the flow is not blocked;
  * users can still sign in later from Settings.
  *
+ * Supports both pretty (0.2.1) and compact backtick (0.2.2+) compiled bundles.
+ *
  * Usage:
  *   node scripts/praxis/patch-signin-waiting.mjs <profile-or-package-root>
  *   node scripts/praxis/patch-signin-waiting.mjs --self-test
@@ -16,10 +18,12 @@ import { resolveProfilePackageFile } from './resolve-profile-module.mjs'
 const MARKER = '/* praxis-signin-dialog-hidden */'
 const OLD_MARKER = '/* praxis-signin-waiting-hidden */'
 
-const SIGNIN_HEAD = 'function SignInDialog({ account, colorScheme, start, cancel, close, useApiKey, t }) {'
-const SIGNIN_HIDE = `${SIGNIN_HEAD}\n\t\t\treturn null;`
+const SIGNIN_HEAD_PRETTY = 'function SignInDialog({ account, colorScheme, start, cancel, close, useApiKey, t }) {'
+const SIGNIN_HIDE_PRETTY = `${SIGNIN_HEAD_PRETTY}\n\t\t\treturn null;`
+const SIGNIN_HEAD_COMPACT = 'function SignInDialog({account,colorScheme,start,cancel,close,useApiKey,t}){'
+const SIGNIN_HIDE_COMPACT = `${SIGNIN_HEAD_COMPACT}return null;`
 
-const ONBOARDING_BLOCK = `(0, react.useEffect)(() => {
+const ONBOARDING_BLOCK_PRETTY = `(0, react.useEffect)(() => {
 				if (account.view?.status === "credential-stored") complete();
 			}, [account.view?.status, complete]);
 			if (!account.view || account.view.status === "credential-stored") return null;
@@ -39,12 +43,16 @@ const ONBOARDING_BLOCK = `(0, react.useEffect)(() => {
 				}
 			});`
 
-const ONBOARDING_SKIP = `(0, react.useEffect)(() => {
+const ONBOARDING_SKIP_PRETTY = `(0, react.useEffect)(() => {
 				if (!account.view) return;
 				showLogin(false);
 				complete();
 			}, [account.view, complete, showLogin]);
 			return null;`
+
+const ONBOARDING_BLOCK_COMPACT = `(0,react.useEffect)(()=>{if(account.view?.status===\`credential-stored\`)complete()},[account.view?.status,complete]);if(!account.view||account.view.status===\`credential-stored\`)return null;return(0,react_jsx_runtime.jsx)(SignInDialog,{account,colorScheme,start,cancel,t,close:()=>{showLogin(false);complete()},useApiKey:()=>{showLogin(false);useApiKey()}})`
+
+const ONBOARDING_SKIP_COMPACT = `(0,react.useEffect)(()=>{if(!account.view)return;showLogin(false);complete()},[account.view,complete,showLogin]);return null`
 
 /** Hide SignInDialog and skip forced account onboarding sign-in. */
 export function patchSignInWaitingSource(source) {
@@ -52,37 +60,44 @@ export function patchSignInWaitingSource(source) {
 
   let next = source.replaceAll(OLD_MARKER + '\n', '').replaceAll(OLD_MARKER, '')
   const steps = []
+  const compact = next.includes(SIGNIN_HEAD_COMPACT)
 
-  if (!next.includes(SIGNIN_HEAD)) {
+  const head = compact ? SIGNIN_HEAD_COMPACT : SIGNIN_HEAD_PRETTY
+  const hide = compact ? SIGNIN_HIDE_COMPACT : SIGNIN_HIDE_PRETTY
+  if (!next.includes(head)) {
     throw new Error('SignIn dialog patch: function SignInDialog missing')
   }
 
-  if (!next.includes('return null;\n\t\t\tconst [busy, setBusy]')) {
+  const alreadyNullPretty = next.includes('return null;\n\t\t\tconst [busy, setBusy]')
+  const alreadyNullCompact = next.includes(SIGNIN_HIDE_COMPACT)
+  if (alreadyNullPretty || alreadyNullCompact) {
+    steps.push('SignInDialog-already-null')
+  } else {
     // Drop the older waiting-only early return if present, then hide the whole dialog.
     next = next.replace(
       'const title = error ? t("failureTitle") : active ? t("browserTitle") : expired ? t("timeoutTitle") : t("loginTitle");\n\t\t\tif (waiting) return null;\n\t\t\treturn (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.Modal, {',
       'const title = error ? t("failureTitle") : active ? t("browserTitle") : expired ? t("timeoutTitle") : t("loginTitle");\n\t\t\treturn (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.Modal, {',
     )
-    next = next.replace(SIGNIN_HEAD, SIGNIN_HIDE)
+    next = next.replace(head, hide)
     steps.push('hide-SignInDialog')
-  } else {
-    steps.push('SignInDialog-already-null')
   }
 
-  if (!next.includes(ONBOARDING_SKIP)) {
-    if (!next.includes(ONBOARDING_BLOCK)) {
+  const skip = compact ? ONBOARDING_SKIP_COMPACT : ONBOARDING_SKIP_PRETTY
+  const block = compact ? ONBOARDING_BLOCK_COMPACT : ONBOARDING_BLOCK_PRETTY
+  if (!next.includes(skip)) {
+    if (!next.includes(block)) {
       throw new Error('SignIn dialog patch: AccountOnboarding SignInDialog block missing')
     }
-    next = next.replace(ONBOARDING_BLOCK, ONBOARDING_SKIP)
+    next = next.replace(block, skip)
     steps.push('skip-AccountOnboarding')
   } else {
     steps.push('AccountOnboarding-already-skipped')
   }
 
-  if (!next.includes('function SignInDialog({ account, colorScheme, start, cancel, close, useApiKey, t }) {\n\t\t\treturn null;')) {
+  if (!next.includes(hide) && !alreadyNullPretty) {
     throw new Error('SignIn dialog patch: SignInDialog still visible after transform')
   }
-  if (next.includes('return (0, react_jsx_runtime.jsx)(SignInDialog, {')) {
+  if (next.includes('return (0, react_jsx_runtime.jsx)(SignInDialog, {') || next.includes('return(0,react_jsx_runtime.jsx)(SignInDialog,{')) {
     throw new Error('SignIn dialog patch: AccountOnboarding still mounts SignInDialog')
   }
 
@@ -145,28 +160,28 @@ function selfTest() {
 `
   const once = patchSignInWaitingSource(sample)
   if (!once.changed) throw new Error('self-test: expected change')
-  if (!once.source.includes('function SignInDialog({ account, colorScheme, start, cancel, close, useApiKey, t }) {\n\t\t\treturn null;')) {
-    throw new Error('self-test: SignInDialog not hidden')
-  }
-  if (once.source.includes('return (0, react_jsx_runtime.jsx)(SignInDialog, {')) {
-    throw new Error('self-test: AccountOnboarding still mounts dialog')
-  }
+  if (!once.source.includes(SIGNIN_HIDE_PRETTY)) throw new Error('self-test: SignInDialog not hidden')
+  if (once.source.includes('return (0, react_jsx_runtime.jsx)(SignInDialog, {')) throw new Error('self-test: onboarding still mounts')
   const twice = patchSignInWaitingSource(once.source)
   if (!twice.already) throw new Error('self-test: expected idempotent skip')
-  console.log('patch-signin-waiting self-test ok:', once.steps.join(', '))
+
+  const compact = `function SignInDialog({account,colorScheme,start,cancel,close,useApiKey,t}){const[busy,setBusy]=(0,react.useState)(false);return(0,react_jsx_runtime.jsxs)(Modal,{open:true})}function AccountOnboarding({complete,useApiKey,useAccount,useTheme,setOnboarding,showLogin,start,cancel,t}){const account=useAccount(value=>value);const colorScheme=useTheme(snapshot=>snapshot.active.colorScheme);(0,react.useEffect)(()=>{setOnboarding(true);return()=>{setOnboarding(false)}},[setOnboarding]);(0,react.useEffect)(()=>{if(account.view?.status===\`credential-stored\`)complete()},[account.view?.status,complete]);if(!account.view||account.view.status===\`credential-stored\`)return null;return(0,react_jsx_runtime.jsx)(SignInDialog,{account,colorScheme,start,cancel,t,close:()=>{showLogin(false);complete()},useApiKey:()=>{showLogin(false);useApiKey()}})}`
+  const compactOnce = patchSignInWaitingSource(compact)
+  if (!compactOnce.changed || !compactOnce.source.includes(SIGNIN_HIDE_COMPACT)) throw new Error('self-test compact: hide failed')
+  if (compactOnce.source.includes('return(0,react_jsx_runtime.jsx)(SignInDialog,{')) throw new Error('self-test compact: onboarding still mounts')
+  console.log('patch-signin-waiting self-test ok:', once.steps.join(', '), '| compact:', compactOnce.steps.join(', '))
 }
 
 const isMain = process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
 if (isMain) {
   const args = process.argv.slice(2)
-  if (args[0] === '--self-test') {
-    selfTest()
-  } else if (!args[0]) {
+  if (args[0] === '--self-test') selfTest()
+  else if (!args[0]) {
     console.error('Usage: node scripts/praxis/patch-signin-waiting.mjs <profile-or-package-root> | --self-test')
     process.exit(2)
   } else {
     const result = patchSignInWaitingAt(args[0])
-    console.log(result.already ? 'SignIn dialog already patched:' : 'SignIn dialog patched:', result.file)
+    console.log(result.already ? 'SignIn dialog already hidden:' : 'SignIn dialog hidden:', result.file)
     if (result.steps) console.log('steps:', result.steps.join(', '))
   }
 }

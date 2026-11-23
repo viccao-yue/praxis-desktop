@@ -13,21 +13,21 @@ test('a started native Session resumes by authorized cold reads and never invoke
  const directory=await realpath(await mkdtemp(join(tmpdir(),'workdsh-native-resume-')));
  try{for(const createBehavior of ['mint-new-id','reject-existing']){
   const calls=[];
-  const native={create:async()=>{calls.push('create');if(createBehavior==='reject-existing')throw Error('already-exists');return {sessionId:'another-new-blank',agentPreset:'cordis'};},inspect:async id=>{calls.push('inspect');assert.equal(id,'started-original');return {meta:{id,cwd:directory,agentPreset:'cordis'},events:[{type:'turn/start',seq:1}]};},projections:async()=>{calls.push('projections');return {kind:'sequenced',asOfSeq:1,values:{agentPreset:'cordis'}};}};
+  const native={create:async()=>{calls.push('create');if(createBehavior==='reject-existing')throw Error('already-exists');return {sessionId:'another-new-blank',agentPreset:'cordis'};},inspect:async id=>{calls.push('inspect');assert.equal(id,'started-original');return {meta:{cwd:directory},events:[{type:'turn/start',seq:1}]};},list:async()=>{calls.push('list');return {items:[{sessionId:'started-original',cwd:directory}]};},projections:async()=>{calls.push('projections');return {kind:'sequenced',asOfSeq:1,values:{agentPreset:'cordis'}};}};
   const restored=await resume(actor,'started-original','started-original',directory,{...native,authorize:async()=>{calls.push('authorize');}},()=>{});
-  assert.equal(restored,'started-original');assert.deepEqual(calls,['authorize','inspect','projections','authorize']);
+  assert.equal(restored,'started-original');assert.deepEqual(calls,['authorize','inspect','list','projections','authorize']);
  }}finally{await rm(directory,{recursive:true,force:true});}
 });
 test('resume preserves identity, ownership, workspace and current preset fences; failed reads never create a substitute',async()=>{
  const directory=await realpath(await mkdtemp(join(tmpdir(),'workdsh-native-resume-fences-')));
  try{
   const expected='original';let creates=0;
-  const normal={authorize:async()=>{},inspect:async()=>({meta:{id:expected,cwd:directory},events:[]}),projections:async()=>({kind:'sequenced',asOfSeq:0,values:{agentPreset:'cordis'}}),create:async()=>{creates++;}};
+  const normal={authorize:async()=>{},inspect:async()=>({meta:{cwd:directory},events:[]}),list:async()=>({items:[{sessionId:expected,cwd:directory}]}),projections:async()=>({kind:'sequenced',asOfSeq:0,values:{agentPreset:'cordis'}}),create:async()=>{creates++;}};
   await assert.rejects(resume(actor,'another',expected,directory,normal,()=>{}),/creation-conflict/);
   await assert.rejects(resume(actor,expected,expected,directory,{...normal,authorize:async()=>{throw Error('workbench/creation-access-denied');}},()=>{}),/creation-access-denied/);
   const readError=Object.assign(Error('not-readable'),{code:'session/not-found'});
   await assert.rejects(resume(actor,expected,expected,directory,{...normal,inspect:async()=>{throw readError;}},()=>{}),error=>error===readError);
-  await assert.rejects(resume(actor,expected,expected,directory,{...normal,inspect:async()=>({meta:{id:expected,cwd:tmpdir()},events:[]})},()=>{}),/session-workspace-mismatch/);
+  await assert.rejects(resume(actor,expected,expected,directory,{...normal,inspect:async()=>({meta:{cwd:tmpdir()},events:[]}),list:async()=>({items:[{sessionId:expected,cwd:tmpdir()}]})},()=>{}),/session-workspace-mismatch/);
   await assert.rejects(resume(actor,expected,expected,directory,{...normal,projections:async()=>({kind:'sequenced',asOfSeq:1,values:{agentPreset:'standard'}})},()=>{}),/development-creator-required/);
   await assert.rejects(resume(actor,expected,expected,directory,{...normal,projections:async()=>({kind:'migration-required',values:{agentPreset:'cordis'}})},()=>{}),/session-state-unavailable/);
   const controller=new AbortController();controller.abort();await assert.rejects(resume(actor,expected,expected,directory,normal,()=>controller.signal.throwIfAborted(),controller.signal),error=>error.name==='AbortError');

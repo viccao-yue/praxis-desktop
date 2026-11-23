@@ -6,6 +6,7 @@ import { Context } from '@deepseek-ai/cordis';
 import Tools from '@deepseek-ai/dsh-tools';
 import * as Plugin from '../dist/index.js';
 import { enterpriseMemberCollaboration } from '../dist/member.js';
+import { executeOneTool } from '../../../test-support/execute-one-tool.mjs';
 
 const a = '11111111-1111-4111-8111-111111111111';
 const b = '22222222-2222-4222-8222-222222222222';
@@ -77,7 +78,7 @@ async function instance(member, memberToken) {
   await ctx.plugin(Tools);
   const fiber = await ctx.plugin(enterpriseMemberCollaboration(adminUrl, async () => `Bearer ${memberToken}`));
   async function call(name, args = {}, callId = randomUUID()) {
-    return ctx.tools.execute({ name, arguments: args, callId,
+    return executeOneTool(ctx.tools, { name, arguments: args, callId,
       agent: { id: `session-${member}` }, signal: new AbortController().signal });
   }
   return { ctx, fiber, call, route: request => route.fetch(request) };
@@ -190,7 +191,7 @@ test('a mismatched DSH principal cannot call the member service', async () => {
   ctx.provide('workdshIdentity', { async resolve() { return { principalId: b, organizationId: 'org' }; } });
   await ctx.plugin(Tools);
   const fiber = await ctx.plugin(Plugin, { adminUrl, memberAuthorization: async () => `Bearer ${[...tokens.keys()][0]}` });
-  const result = await ctx.tools.execute({ name: 'workdsh_collaboration_colleagues', arguments: {}, callId: 'mismatch',
+  const result = await executeOneTool(ctx.tools, { name: 'workdsh_collaboration_colleagues', arguments: {}, callId: 'mismatch',
     agent: { id: 'session-mismatch' }, signal: new AbortController().signal });
   assert.equal(result.isError, true);
   await fiber.dispose(); await ctx.fiber.dispose();

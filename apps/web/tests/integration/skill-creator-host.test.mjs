@@ -7,6 +7,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as skillsHost from '../../../../packages/plugins/skills/dist/index.js';
+import { executeOneTool } from '../../../../packages/test-support/execute-one-tool.mjs';
 
 test('skills Host owns a disposable manager and official skill registration', async () => {
   const root = await mkdtemp(join(tmpdir(), 'workdsh-skill-api-'));
@@ -73,7 +74,7 @@ test('skills Host owns a disposable manager and official skill registration', as
     assert.ok(ctx.tools.get('workdsh_validate_skill_draft'));
     assert.ok(ctx.tools.get('workdsh_publish_skill_draft'));
     const controller = new AbortController();
-    const runTool = async (name, args) => ctx.tools.execute({ callId: `call-${name}`, name, arguments: args, signal: controller.signal });
+    const runTool = async (name, args) => executeOneTool(ctx.tools, { callId: `call-${name}`, name, arguments: args, signal: controller.signal });
     const documentFromTool = '---\nname: managed-authoring\ndescription: Managed authoring test\n---\nAlways return a deterministic fixture.\n';
     const drafted = await runTool('workdsh_save_skill_draft', { name: 'managed-authoring', document: documentFromTool, scope: 'shared-agents' });
     assert.equal(drafted.isError, false);

@@ -1,0 +1,13 @@
+{
+  "name": "workdsh-test-support",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./execute-one-tool.mjs": "./execute-one-tool.mjs"
+  },
+  "files": [
+    "execute-one-tool.mjs",
+    "README.md"
+  ]
+}

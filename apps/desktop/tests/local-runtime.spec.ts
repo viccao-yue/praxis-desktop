@@ -110,6 +110,41 @@ it('on overlay upgrade replaces dsh-living-memory with dsh-mnemon in personal an
   expect(enterpriseNext.dsh.profile.bundles).not.toContain('dsh-living-memory')
 })
 
+it('seeds editable context defaults in both spaces without overwriting existing context settings', () => {
+  const { source, home, base } = fixture()
+  const homes = [home, join(home, '..', 'enterprise-home')]
+  const userPatch = '- id: dsh-context\n  config:\n    defaultPlacement: sidebar\n'
+  for (const [index, space] of homes.entries()) {
+    const { profile } = materializeRuntimeProfile(source, space)
+    writeFileSync(join(profile, 'cordis.patch.yml'), index === 0 ? userPatch : '- id: better-sidebar\n  disabled: !!js "false"\n')
+  }
+
+  base.dsh.profile.bundles.push('dsh-context')
+  writeFileSync(join(source, 'package.json'), JSON.stringify(base))
+  const defaultsFile = 'praxis-default-context.patch.yml'
+  writeFileSync(join(source, defaultsFile), readFileSync(new URL(`../scripts/${defaultsFile}`, import.meta.url)))
+  for (const [index, space] of homes.entries()) {
+    const upgraded = materializeRuntimeProfile(source, space)
+    const fresh = materializeRuntimeProfile(source, `${space}-new`)
+    const currentPatch = readFileSync(join(upgraded.profile, 'cordis.patch.yml'), 'utf8')
+    if (index === 0) expect(currentPatch).toBe(userPatch)
+    else {
+      expect(currentPatch).toContain('defaultPlacement: tab')
+      expect(currentPatch).toMatch(/(?:!!js|!<tag:yaml.org,2002:js>) ['"]?false/)
+    }
+    expect(readFileSync(join(fresh.profile, 'cordis.patch.yml'), 'utf8')).toContain("overviewAutoSteps: '100'")
+    for (const { profile, changed } of [upgraded, fresh]) {
+      const manifest = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8'))
+      expect(manifest.dsh.profile.bundles.filter((name: string) => name === 'dsh-context')).toEqual(['dsh-context'])
+      expect(manifest.dependencies['dsh-context']).toBeUndefined()
+      expect(changed).toBe(false)
+    }
+    writeFileSync(join(fresh.profile, 'cordis.patch.yml'), '[]\n')
+    materializeRuntimeProfile(source, `${space}-new`)
+    expect(readFileSync(join(fresh.profile, 'cordis.patch.yml'), 'utf8')).toBe('[]\n')
+  }
+})
+
 it('strips dsh-email sidebar/workbench registration while keeping 设置', () => {
   const { home } = fixture()
   const client = join(home, 'profiles/kaiwu/node_modules/dsh-email/lib/client.js')

@@ -2,7 +2,7 @@
 
 ## 2026-09-15：团队展示交给官方 Team
 
-按用户决定退役自建团队执行与展示。工作动态条仅用于个人任务；团队资产或已有子成员的任务不显示旧团队头像、成员轮询详情和“主理人处理中”分支。团队名册、任务操作与成员导航由 `@deepseek-ai/dsh-experimental-client-ui-agent-team@0.1.6-alpha.1` 的公开 Client 负责。以下早期团队样式记录保留为历史，不是当前实现。视觉证据见 `.artifacts/dsh-0.1.6-upgrade/native-team-web/`，验收结论以 STATUS 为准。
+按用户决定退役自建团队执行与展示。工作动态条仅用于个人任务；团队资产或已有子成员的任务不显示旧团队头像、成员轮询详情和“主理人处理中”分支。团队名册、任务操作与成员导航由 `@deepseek-ai/dsh-client-ui-agent-team@0.1.6-alpha.1` 的公开 Client 负责。以下早期团队样式记录保留为历史，不是当前实现。视觉证据见 `.artifacts/dsh-0.1.6-upgrade/native-team-web/`，验收结论以 STATUS 为准。
 
 
 ## 用户已确认需求

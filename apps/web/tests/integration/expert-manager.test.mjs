@@ -25,6 +25,7 @@ import { registerExpertExecutionGuard } from '../../../../packages/plugins/exper
 import { COMPILER_VERSION, compileExpertPreset, expertPersonaConfig, expertPresetDir, readExpertPreset } from '../../../../packages/plugins/experts/dist/runtime/preset-compiler.js';
 import { definitionFromDocuments } from '../../../../packages/plugins/experts/dist/authoring/documents.js';
 import { keys } from '../../../../packages/plugins/experts/dist/storage/domain.js';
+import { executeOneTool } from '../../../../packages/test-support/execute-one-tool.mjs';
 
 test('authored expert package publishes complete MD and mounts retained bundled Skill resources', async () => {
   const h = await boot();
@@ -695,7 +696,7 @@ test('authoring tool content preserves full definitions, CAS tokens and draft li
     await h.ctx.plugin(Tools);
     registerExpertManagementTools(h.ctx);
     let call = 0;
-    const run = (name, args) => h.ctx.tools.execute({ callId: `author-${++call}`, name, arguments: args, signal: new AbortController().signal });
+    const run = (name, args) => executeOneTool(h.ctx.tools, { callId: `author-${++call}`, name, arguments: args, signal: new AbortController().signal });
     const definition = fullDefinition('Authoring fixture');
     const { skillRequirements, futureRequirements, ...prose } = definition;
     const drafted = await run('workdsh_expert_create_draft', { definition: { ...prose, skill_requirements: [], future_requirements: [] } });
@@ -993,7 +994,7 @@ test('expert tools use live fixed-member admission and deny expiry or foreign id
     const member = fixedMemberAdmission(h.ctx);
     const agent = { id: 'member-session' };
     registerExpertManagementTools(h.ctx);
-    const run = () => h.ctx.tools.execute({ callId: 'member-list', name: 'workdsh_expert_list', arguments: {}, agent, signal: new AbortController().signal });
+    const run = () => executeOneTool(h.ctx.tools, { callId: 'member-list', name: 'workdsh_expert_list', arguments: {}, agent, signal: new AbortController().signal });
     assert.equal((await run()).isError, false);
     member.revoke(); const expired = await run(); assert.equal(expired.isError, true); assert.match(expired.error.message, /Expired/);
     member.restore(); member.foreign(); const foreign = await run(); assert.equal(foreign.isError, true); assert.match(foreign.error.message, /identity mismatch/);

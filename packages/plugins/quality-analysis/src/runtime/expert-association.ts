@@ -1,5 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
+import type { SessionId } from '@deepseek-ai/dsh-session';
 import type { ExpertsService, ExecutionCreation, IdentityService, RuntimeBindingService } from 'workdsh-contracts';
+import { readSessionCold } from './session-cold-inspect.js';
 
 export interface QualityExpertAssociation {
   readonly recordId: string;
@@ -57,11 +59,10 @@ export async function readQualityExpertInterpretation(
   if (binding.expertRevisionRef.expertId !== association.expertId || binding.expertRevisionRef.revisionId !== association.expertRevisionId || binding.compositionDigest !== association.compositionDigest || binding.creationOperationId !== association.creationOperationId) throw Error('quality/service/expert-binding-conflict');
   const creation = { sessionId: association.sessionId, binding, handoffId: '' };
   await verifyQualityExpertAssociation(ctx, association, creation, verifyRun, signal);
-  type Inspector = { inspect(sessionId: string, signal?: AbortSignal): Promise<{ events: readonly unknown[] }> };
-  const protectedSessions = ctx.get('workdshSessionAccess') as Inspector | undefined;
-  const native = ctx.get('sessionController') as Inspector | undefined;
-  if (!native || (identity.profile().organization.kind !== 'personal' && !protectedSessions)) throw Error('quality/service/session-unavailable');
-  const inspected = await (protectedSessions ?? native).inspect(association.sessionId, signal);
+  const protectedSessions = ctx.get('workdshSessionAccess') as Parameters<typeof readSessionCold>[1];
+  const native = ctx.get('sessionController') as Pick<Context['sessionController'], 'events' | 'list'> | undefined;
+  if (!native?.events || !native?.list || (identity.profile().organization.kind !== 'personal' && !protectedSessions)) throw Error('quality/service/session-unavailable');
+  const inspected = await readSessionCold(native, protectedSessions, association.sessionId as SessionId, signal);
   const verified = await verifyQualityExpertAssociation(ctx, association, creation, verifyRun, signal);
   const { readQualityInterpretationCandidate } = await import('./interpretation-candidate.js');
   const candidate = readQualityInterpretationCandidate({ recordId: association.recordId, runId: association.runId, contentHash: association.contentHash, sessionId: association.sessionId }, inspected.events);

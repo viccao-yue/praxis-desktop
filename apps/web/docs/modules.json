@@ -599,5 +599,15 @@
     "requirements": [
       "R15"
     ]
+  },
+  {
+    "path": "../../packages/test-support",
+    "title": "测试辅助",
+    "status": "implemented",
+    "directories": [],
+    "moduleVersion": "0.1",
+    "requirements": [
+      "R15"
+    ]
   }
 ]

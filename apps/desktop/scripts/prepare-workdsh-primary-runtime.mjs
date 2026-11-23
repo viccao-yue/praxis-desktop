@@ -26,9 +26,11 @@ if (!existsSync(profileMarker) || JSON.parse(readFileSync(profileMarker, 'utf8')
 await ensureNativeWorkbenchFrame(profile)
 await verifyNativeWorkbenchFrame(profile)
 const released = await prepareOfficialRelease(desktopRoot, target)
-for (const name of ['primary-runtime', 'office-skills']) copyOfficialRuntime(join(released, 'runtime', name), join(output, name))
+copyOfficialRuntime(join(released, 'runtime', 'primary-runtime'), join(output, 'primary-runtime'))
+const releasedOfficeSkills = join(released, 'runtime', 'office-skills')
+if (existsSync(releasedOfficeSkills)) copyOfficialRuntime(releasedOfficeSkills, join(output, 'office-skills'))
 const manifestPath = join(output, 'primary-runtime', 'runtime.json')
-if (!existsSync(manifestPath) || !existsSync(join(output, 'office-skills'))) {
+if (!existsSync(manifestPath)) {
   throw new Error('Official primary runtime payload is incomplete')
 }
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
@@ -47,7 +49,7 @@ if (packages.some(name => profilePackage.dependencies?.[name] !== DSH_VERSION
   || JSON.parse(readFileSync(join(profile, 'node_modules', name, 'package.json'), 'utf8')).version !== DSH_VERSION)) {
   throw new Error('Prepare the complete official Office/workspace dependency graph before its primary runtime; primary preparation must not change the installation manifest')
 }
-const patch = `# Official DeepSeek Harness Desktop workspace dependencies and Office skills.\n- insert:\n    - id: workspace-dependencies\n      name: '@deepseek-ai/dsh-tool-workspace-dependencies'\n      config:\n        source: !!js "process.env.DSH_BUNDLED_PRIMARY_RUNTIME"\n        root: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME, 'dsh-runtimes', 'dsh-primary-runtime')"\n    - id: skill-office\n      name: '@deepseek-ai/dsh-skill-office'\n      config:\n        assetRoot: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_BUNDLED_PRIMARY_RUNTIME, '..', 'office-skills')"\n        node: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_BUNDLED_PRIMARY_RUNTIME, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')"\n`
+const patch = `# Official DeepSeek Harness Desktop workspace dependencies and Office skills.\n- insert:\n    - id: workspace-dependencies\n      name: '@deepseek-ai/dsh-tool-workspace-dependencies'\n      config:\n        source: !!js "process.env.DSH_BUNDLED_PRIMARY_RUNTIME"\n        root: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME, 'dsh-runtimes', 'dsh-primary-runtime')"\n    - id: skill-office\n      name: '@deepseek-ai/dsh-skill-office'\n      config:\n        node: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_BUNDLED_PRIMARY_RUNTIME, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')"\n`
 const patchPath = join(profile, 'cordis.patch.yml')
 const currentPatch = existsSync(patchPath) ? readFileSync(patchPath, 'utf8') : ''
 const previousOfficial = currentPatch.indexOf('# Official DeepSeek Harness Desktop workspace dependencies and Office skills.')

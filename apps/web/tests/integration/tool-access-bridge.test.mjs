@@ -12,6 +12,7 @@ import { AccessManager, SessionAccessBridge, ToolAccessBridge } from '../../../.
 import { createRequire } from 'node:module';
 const { ApiSessionNotFound } = await import(createRequire(new URL('../../../../packages/plugins/access/package.json', import.meta.url)).resolve('@deepseek-ai/dsh-api-session-controller'));
 import { AuditJournal } from '../../../../packages/plugins/audit/dist/index.js';
+import { executeOneTool } from '../../../../packages/test-support/execute-one-tool.mjs';
 
 const membershipDirectory = new Map([
   ['personal-owner:owner-a', {
@@ -100,7 +101,7 @@ async function boot(root, selectedBySession, config = {}) {
 }
 
 async function execute(ctx, sessionId, name = 'governed_echo') {
-  return ctx.tools.execute({
+  return executeOneTool(ctx.tools, {
     callId: `call-${sessionId}-${name}-${Math.random()}`,
     name,
     arguments: {},

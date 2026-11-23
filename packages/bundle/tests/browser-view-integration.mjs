@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import { registerBrowserView } from '../dist/browser-view.js';
+import { executeOneTool } from '../../test-support/execute-one-tool.mjs';
 
 const profile = process.env.WORKDSH_PREVIEW_HOME;
 const executable = process.env.DSH_BROWSER_EXECUTABLE;
@@ -62,7 +63,8 @@ test('real Playwright MCP navigation appears in its Session sidebar frame', { sk
       effect: ctx.effect.bind(ctx), on: ctx.on.bind(ctx), tools: { async execute(call) {
         try {
           const response = await ctx.tools.execute(call);
-          screenshots.push({ keys: Object.keys(response), error: response.isError, content: response.content.map(block => block.type === 'text' ? block.text.slice(0, 300) : block.type) });
+          const first = response.results?.[0]?.result ?? response;
+          screenshots.push({ keys: Object.keys(response), error: first.isError, content: (first.content ?? []).map(block => block.type === 'text' ? block.text.slice(0, 300) : block.type) });
           return response;
         } catch (cause) {
           screenshots.push({ thrown: String(cause) });
@@ -75,7 +77,7 @@ test('real Playwright MCP navigation appears in its Session sidebar frame', { sk
     await owner.agent.whenIdle();
     await ctx.systemPrompt.assemble({ agent: owner.agent, scope: owner.agent, signal: new AbortController().signal });
     const url = `http://127.0.0.1:${server.address().port}/fixture`;
-    const result = await ctx.tools.execute({ agent: owner.agent, name: 'mcp__playwright-mcp__browser_navigate', arguments: { url }, callId: ToolCallId('navigate'), signal: AbortSignal.timeout(30_000) });
+    const result = await executeOneTool(ctx.tools, { agent: owner.agent, name: 'mcp__playwright-mcp__browser_navigate', arguments: { url }, callId: ToolCallId('navigate'), signal: AbortSignal.timeout(30_000) });
     assert.equal(result.isError, false, JSON.stringify(result.content));
     let frame;
     for (let i = 0; i < 100; i++) {

@@ -54,6 +54,7 @@ try {
   for (const client of release.officialWeb.clients.filter(row => !row.conditional)) {
     if (!ids.has(client.package)) throw new Error('Unconditional official Web client missing at runtime: ' + client.package)
   }
+  if (!ids.has('dsh-context')) throw new Error('Context plugin client missing at runtime')
   for (const name of [...PRODUCT_PACKAGES, 'workdsh-bundle']) if (!ids.has(name)) throw new Error('Owned client missing at runtime: ' + name + '; owned graph=' + [...ids].filter(row => row.startsWith('workdsh-')).join(',') + '; ' + diagnostics())
   const owned = [...ids].filter(name => name.startsWith('workdsh-')).sort()
   // 企业连接 is a default personal client. Identity and collaboration stay out until login.

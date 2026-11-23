@@ -6,6 +6,8 @@ import type {IdentityService,RuntimeBindingService} from 'workdsh-contracts';
 import type {QualityAiTools} from './ai-tools.js';
 import type {QualityAiReportTarget} from './ai-session-store.js';
 import {attachQualitySession,createQualityWorkspace,qualityWorkspacePorts,registerQualityWorkspace} from './session-workspace.js';
+import type {SessionId} from '@deepseek-ai/dsh-session';
+import {readSessionCold} from './session-cold-inspect.js';
 type RunView={recordId:string;runId:string;contentHash:string};
 export type QualityAiRunSessionRequest=RunView&{reportTarget?:QualityAiReportTarget|null};
 
@@ -35,10 +37,11 @@ export async function ensureQualityRunSession(ctx:Context,view:RunView,verifyRun
  if(!view.recordId.trim()||view.recordId.length>128||!view.runId.trim()||view.runId.length>128||!/^[a-f0-9]{64}$/.test(view.contentHash))throw Error('quality/request/invalid');
  const identity=ctx.get('workdshIdentity') as IdentityService|undefined;
  const access=ctx.get('workdshAccess') as RuntimeBindingService|undefined;
- type Native={create(request:SessionCreateRequest):Promise<SessionCreateValue>;inspect(sessionId:NonNullable<SessionCreateRequest['sessionId']>,signal?:AbortSignal):Promise<{meta:{cwd?:string}}>;};
- type Protected=Native&{create(request:SessionCreateRequest,signal?:AbortSignal):Promise<SessionCreateValue>};
+ type Native=Pick<Context['sessionController'],'create'|'events'|'list'>;
+ type Protected={create(request:SessionCreateRequest,signal?:AbortSignal):Promise<SessionCreateValue>;inspect(sessionId:SessionId,signal?:AbortSignal):Promise<import('./session-cold-inspect.js').SessionInspection>};
  const native=ctx.get('sessionController') as Native|undefined;
  const protectedSessions=ctx.get('workdshSessionAccess') as Protected|undefined;
+ const coldInspect=(sessionId:SessionId)=>readSessionCold(native!,protectedSessions,sessionId,signal);
  if(!identity||!access||!native)throw Error('quality/service/session-unavailable');
  const actor=await identity.resolve(undefined,signal);
  const authorize=()=>{signal?.throwIfAborted();ctx.fiber.assertActive();const profile=identity.profile();if(profile.principalId!==actor.principalId||profile.organization.id!==actor.organizationId||profile.resolvedBy!==actor.resolvedBy||identity.membership(actor.organizationId,actor.principalId)?.state!=='active')throw Error('quality/service/access-denied');if(profile.organization.kind!=='personal'&&!protectedSessions)throw Error('quality/service/session-unavailable');};
@@ -51,8 +54,8 @@ export async function ensureQualityRunSession(ctx:Context,view:RunView,verifyRun
  // Earlier versions created owned Sessions with only default cwd. Attach the
  // same immutable native header path; no new Session, cwd, owner or history.
  if(prior&&prior.workspaceId===undefined){
-  if(typeof (protectedSessions??native).inspect!=='function')throw Error('quality/service/session-unavailable');
-  const inspected=await (protectedSessions??native).inspect(id,signal);authorizeSession();
+  if(!native?.events||!native?.list)throw Error('quality/service/session-unavailable');
+  const inspected=await coldInspect(id);authorizeSession();
   if(typeof inspected.meta?.cwd!=='string'||!inspected.meta.cwd)throw Error('quality/service/workspace-conflict');
   const workspace=await registerQualityWorkspace(ports,inspected.meta.cwd,authorizeSession);
   await attachQualitySession(workspace,id,authorizeSession);await verifyRun();authorizeSession();
@@ -64,7 +67,7 @@ export async function ensureQualityRunSession(ctx:Context,view:RunView,verifyRun
  // may retain that path as a compatibility link; inspect the existing owned
  // Session and its canonical Workspace instead of asking create to rewrite it.
  if(prior){
-  const inspected=await (protectedSessions??native).inspect(id,signal);authorizeSession();
+  const inspected=await coldInspect(id);authorizeSession();
   if(typeof inspected.meta?.cwd!=='string'||!inspected.meta.cwd)throw Error('quality/service/workspace-conflict');
   if(await realpath(inspected.meta.cwd)!==await realpath(workspace.path))throw Error('quality/service/workspace-conflict');
   await verifyRun();authorizeSession();
@@ -87,9 +90,9 @@ export async function readQualityRunInterpretation(ctx:Context,view:{recordId:st
  const {readQualityInterpretationCandidate}=await import('./interpretation-candidate.js');
  const identity=ctx.get('workdshIdentity') as IdentityService|undefined;
  const access=ctx.get('workdshAccess') as RuntimeBindingService|undefined;
- type Inspector={inspect(sessionId:string,signal?:AbortSignal):Promise<{events:readonly unknown[]}>};
+ type Inspector=Pick<Context['sessionController'],'events'|'list'>;
  const native=ctx.get('sessionController') as Inspector|undefined;
- const protectedSessions=ctx.get('workdshSessionAccess') as Inspector|undefined;
+ const protectedSessions=ctx.get('workdshSessionAccess') as Parameters<typeof readSessionCold>[1];
  if(!identity||!access||!native)throw Error('quality/service/session-unavailable');
  const actor=await identity.resolve(undefined,signal);
  const sessionId=`session-${createHash('sha256').update(JSON.stringify(['workdsh-quality-analysis',actor.organizationId,actor.principalId,view.recordId,view.runId,view.contentHash])).digest('hex').slice(0,32)}`;
@@ -98,7 +101,8 @@ export async function readQualityRunInterpretation(ctx:Context,view:{recordId:st
   if(profile.organization.kind!=='personal'&&!protectedSessions)throw Error('quality/service/session-unavailable');
  };
  authorize();await verifyRun();authorize();
- const inspected=await (protectedSessions??native).inspect(sessionId,signal);authorize();
+ if(!native?.events||!native?.list)throw Error('quality/service/session-unavailable');
+ const inspected=await readSessionCold(native,protectedSessions,sessionId as SessionId,signal);authorize();
  await verifyRun();authorize();
  return readQualityInterpretationCandidate({...view,sessionId},inspected.events);
 }

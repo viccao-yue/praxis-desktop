@@ -3,6 +3,8 @@
  * Replace official sidebar glyphs that Praxis does not own:
  * 插件 pinwheel → plug, 自动化任务 plain clock → alarm clock.
  *
+ * Supports both pretty (0.2.1) and compact (0.2.2+) compiled bundles.
+ *
  * Usage:
  *   node scripts/praxis/patch-sidebar-icons.mjs <profile-or-package-root>
  *   node scripts/praxis/patch-sidebar-icons.mjs --self-test
@@ -18,13 +20,15 @@ const svg = (d) => `return (0, react_jsx_runtime.jsx)("svg", { width: size, heig
 const replacements = [
   {
     packageName: '@deepseek-ai/dsh-client-ui-schedule',
-    from: 'return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconClockOutlineRegular, { size });',
+    fromPretty: 'return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconClockOutlineRegular, { size });',
+    fromCompact: 'return(0,react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconClockOutlineRegular,{size})',
     to: svg('M12 7.5v5l3.5 2M5.2 4.2L3 6.5M18.8 4.2L21 6.5M5.2 19.8L3 17.5M18.8 19.8L21 17.5M21 12a9 9 0 11-18 0 9 9 0 0118 0'),
     expect: 'TaskManagerIcon',
   },
   {
     packageName: '@deepseek-ai/dsh-client-ui-plugin-manager',
-    from: 'return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconPluginPinwheelOutlineRegular, { size });',
+    fromPretty: 'return (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconPluginPinwheelOutlineRegular, { size });',
+    fromCompact: 'return(0,react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconPluginPinwheelOutlineRegular,{size})',
     to: svg('M9 3v4M15 3v4M7 7h10v6a5 5 0 01-10 0V7zM12 18v3'),
     expect: 'PluginsPanelIcon',
   },
@@ -44,8 +48,11 @@ export function patchSidebarIconSource(source, spec) {
   const at = source.indexOf(`function ${spec.expect}(`)
   if (at < 0) throw new Error('Sidebar icon patch: ' + spec.expect + ' missing')
   const window = source.slice(at, at + 600)
-  if (!window.includes(spec.from)) throw new Error('Sidebar icon patch: ' + spec.expect + ' glyph missing')
-  const next = source.slice(0, at) + window.replace(spec.from, spec.to) + source.slice(at + window.length)
+  let from = null
+  if (window.includes(spec.fromPretty)) from = spec.fromPretty
+  else if (window.includes(spec.fromCompact)) from = spec.fromCompact
+  if (!from) throw new Error('Sidebar icon patch: ' + spec.expect + ' glyph missing')
+  const next = source.slice(0, at) + window.replace(from, spec.to) + source.slice(at + window.length)
   if (!next.includes(MARKER)) return { source: MARKER + '\n' + next, changed: true, already: false }
   return { source: next, changed: true, already: false }
 }
@@ -68,6 +75,9 @@ function selfTest() {
   if (!once.changed || once.source.includes('IconClockOutlineRegular')) throw new Error('self-test: clock remains')
   const twice = patchSidebarIconSource(once.source, replacements[0])
   if (!twice.already) throw new Error('self-test: expected idempotent skip')
+  const compact = `function TaskManagerIcon({size}){return(0,react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconClockOutlineRegular,{size})}`
+  const compactOnce = patchSidebarIconSource(compact, replacements[0])
+  if (!compactOnce.changed || compactOnce.source.includes('IconClockOutlineRegular')) throw new Error('self-test compact: clock remains')
   console.log('patch-sidebar-icons self-test ok')
 }
 
