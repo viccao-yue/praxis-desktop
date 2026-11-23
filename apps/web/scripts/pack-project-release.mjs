@@ -92,7 +92,7 @@ await writeFile(join(destination, 'release-manifest.json'), JSON.stringify({
     'packages are GitHub assets and are not published to the npm registry',
   ],
 }, null, 2) + '\n');
-await copyFile(join(root, 'scripts/install-project-release.mjs'), join(destination, 'install-workdsh.mjs'));
+await copyFile(join(root, 'scripts/install-project-release.mjs'), join(destination, 'install-kaiwu.mjs'));
 await copyFile(join(root, 'scripts/retain-workbench-archives.mjs'), join(destination, 'retain-workbench-archives.mjs'));
 await copyFile(releaseNotes, join(destination, 'RELEASE-NOTES.md'));
 

@@ -1,25 +1,25 @@
-<p align="center"><img src="assets/brand/workdsh-logo.svg" width="104" alt="kaiwu"></p>
+<p align="center"><img src="assets/brand/kaiwu-logo.svg" width="104" alt="kaiwu"></p>
 <h1 align="center">kaiwu</h1>
 <p align="center"><strong>把工作交给 AI，看清过程，拿到成果。</strong></p>
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
 
 kaiwu 是基于官方 DeepSeek Harness 的开源 AI 工作台。把对话、资料与能力组织到项目里，复用本地资料库，在任务旁查看和编辑交付成果。
 
-**桌面版 v2.0.6-alpha.1 · Web/插件 v0.1.0-alpha.14 · Alpha 预览版**
+**桌面版 · Web/插件 · 开物Praxis**
 
-[桌面版下载](https://github.com/techflag/workdsh/releases/tag/desktop-v2.0.6-alpha.1) · [Web/插件下载](https://github.com/techflag/workdsh/releases/tag/v0.1.0-alpha.14) · [更新说明](https://github.com/techflag/workdsh/releases/tag/v0.1.0-alpha.14) · [快速开始](#快速开始) · [官网](https://techflag.github.io/workdsh/) · [Gitee 镜像](https://gitee.com/techflag/workdsh)
+[桌面版下载](https://github.com/viccao-yue/Praxis/releases) · [Web/插件下载](https://github.com/viccao-yue/Praxis/releases) · [更新说明](RELEASE-NOTES.md) · [快速开始](#快速开始)
 
 ## 下载 kaiwu 桌面版
 
 | 系统 | 安装包 |
 | --- | --- |
-| Windows x64 | [下载 Setup.exe](https://github.com/techflag/workdsh/releases/download/desktop-v2.0.6-alpha.1/dsh-plugin-desktop-windows-x64--WorkDSH-2.0.6-alpha.1-x64-Setup.exe) |
-| macOS Apple 芯片 | [下载 arm64 DMG](https://github.com/techflag/workdsh/releases/download/desktop-v2.0.6-alpha.1/dsh-plugin-desktop-macos-arm64--WorkDSH-2.0.6-alpha.1-arm64.dmg) |
-| macOS Intel | [下载 x64 DMG](https://github.com/techflag/workdsh/releases/download/desktop-v2.0.6-alpha.1/dsh-plugin-desktop-macos-x64--WorkDSH-2.0.6-alpha.1-x64.dmg) |
+| Windows x64 | [Releases](https://github.com/viccao-yue/Praxis/releases) — `kaiwu-*-Setup.exe` |
+| macOS Apple 芯片 | [Releases](https://github.com/viccao-yue/Praxis/releases) — `开物Praxis-*-arm64.dmg` |
+| macOS Intel | [Releases](https://github.com/viccao-yue/Praxis/releases) — `开物Praxis-*-x64.dmg` |
 
-这批 Alpha 安装包内置 kaiwu v0.1.0-alpha.14 和官方 Harness 0.1.7-rc.2 Profile，包含 Node 与 Python。任务浏览器复用 Electron，不额外打包浏览器。macOS DMG 是未签名预览包；校验文件见[桌面版 Release](https://github.com/techflag/workdsh/releases/tag/desktop-v2.0.6-alpha.1)。
+桌面安装包内置 kaiwu Profile 与本仓库锁定的官方 DeepSeek Harness 运行时，包含 Node 与 Python。任务浏览器复用 Electron，不额外打包浏览器。校验文件与精确资源名见各次 [GitHub Release](https://github.com/viccao-yue/Praxis/releases)。
 
-![kaiwu 深色项目主页，包含完整侧栏](assets/screenshots/workdsh-projects-alpha8-dark.png)
+![kaiwu 深色项目主页，包含完整侧栏](assets/screenshots/kaiwu-projects-dark.png)
 
 ## 可以做什么
 
@@ -32,7 +32,7 @@ kaiwu 是基于官方 DeepSeek Harness 的开源 AI 工作台。把对话、资�
 | Office 成果 | 预览和编辑支持范围内的文档、演示文稿、表格、HTML 与 PDF 工作副本；不同格式的保真范围有差异。 |
 | 活动记录 | 查看原生任务与子代理活动；显示专家团名称不代表多个成员已经执行。 |
 
-alpha.14 整包包含 **12 个可安装模块**，包括项目、资料库和受管浏览器会话，并适配 Harness 0.1.7-rc.2 的公开接口。Desktop 中 Agent 操作的网页显示在右侧任务浏览器，与工具操作同一 Electron 页面。附件、输入和发送继续使用 Harness 原生能力。
+Desktop 中 Agent 操作的网页显示在右侧任务浏览器，与工具操作同一 Electron 页面。附件、输入和发送继续使用 Harness 原生能力。
 
 ## 页面截图
 
@@ -41,40 +41,30 @@ alpha.14 整包包含 **12 个可安装模块**，包括项目、资料库和受
 <details>
 <summary>浅色主题：项目主页</summary>
 
-![kaiwu 浅色项目主页，包含完整侧栏](assets/screenshots/workdsh-projects-alpha8-light.png)
+![kaiwu 浅色项目主页，包含完整侧栏](assets/screenshots/kaiwu-projects-light.png)
 
 </details>
 
 <details>
 <summary>Office 示例：对话与 HTML 成果</summary>
 
-![对话与 HTML 分析看板](assets/screenshots/workdsh-html-dashboard-preview.png)
+![对话与 HTML 分析看板](assets/screenshots/kaiwu-html-dashboard-preview.png)
 
-此前的本地预览截图，用于展示成果工作流，不代表 alpha.8 所有文档格式均已验收。
+本地预览截图，用于展示成果工作流，不代表所有文档格式均已验收。
 
 </details>
-
-## Star 趋势
-
-<a href="https://www.star-history.com/?repos=techflag%2Fworkdsh&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=techflag/workdsh&type=date&theme=dark&legend=top-left&sealed_token=BRTkOyC4czCEkIyFb5-QxrsC-kaDotBJ8tsjxrWs-UGfmBqfRCXSwieZPlVTCYOjJVEZ29uLvmBjAPREB524J5dPN1jk-UA7ajFdLdrbjumJqoOBeGWmig" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=techflag/workdsh&type=date&legend=top-left&sealed_token=BRTkOyC4czCEkIyFb5-QxrsC-kaDotBJ8tsjxrWs-UGfmBqfRCXSwieZPlVTCYOjJVEZ29uLvmBjAPREB524J5dPN1jk-UA7ajFdLdrbjumJqoOBeGWmig" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=techflag/workdsh&type=date&legend=top-left&sealed_token=BRTkOyC4czCEkIyFb5-QxrsC-kaDotBJ8tsjxrWs-UGfmBqfRCXSwieZPlVTCYOjJVEZ29uLvmBjAPREB524J5dPN1jk-UA7ajFdLdrbjumJqoOBeGWmig" />
- </picture>
-</a>
 
 ## 快速开始
 
 环境要求：Node.js `^22.19.0 || >=24.0.0`、Corepack/pnpm，以及与所下载发行包 `release-manifest.json` 的 `harness` 字段完全一致的官方 `dsh` CLI。不要使用源码目标版本替代已发布包的版本。
 
-1. 从 [alpha.14 Release](https://github.com/techflag/workdsh/releases/tag/v0.1.0-alpha.14) 下载全部 12 个 `.tgz`、`release-manifest.json`、`SHA256SUMS` 和 `install-workdsh.mjs`，放入同一目录。
+1. 从对应的 [Praxis Release](https://github.com/viccao-yue/Praxis/releases) 下载全部 `.tgz`、`release-manifest.json`、`SHA256SUMS` 和 `install-kaiwu.mjs`，放入同一目录。
 2. 升级已有 Profile 时，先停止运行，并保留配置和数据的可恢复备份。
 3. 在下载目录执行：
 
 ```sh
-node install-workdsh.mjs --profile kaiwu --dry-run
-node install-workdsh.mjs --profile kaiwu
+node install-kaiwu.mjs --profile kaiwu --dry-run
+node install-kaiwu.mjs --profile kaiwu
 ```
 
 安装器校验包的校验和，锁定已验证的包管理器和 Harness 传递依赖，并在 Profile 内安装匹配的官方 base、Web 应用与 CLI。**启动时使用安装器打印的 Profile 内 CLI 命令**，避免全局 CLI 与 Profile 运行时来自不同安装位置。匹配的 CLI 不在 PATH 中时，可传入 `--dsh /absolute/path/to/dsh`。
@@ -108,9 +98,9 @@ corepack pnpm test:library
 corepack pnpm check:versions
 ```
 
-[发行记录](https://github.com/techflag/workdsh/releases) · [项目规划](https://github.com/techflag/workdsh/issues)
+[发行记录](https://github.com/viccao-yue/Praxis/releases) · [项目议题](https://github.com/viccao-yue/Praxis/issues)
 
-当前为 Alpha 预览版。跨平台安装、长时间真实模型专家团、任意 Office 文件保真和多人治理尚未完整验收。Harness 升级后需复验原生 UI 适配。具体测试范围以本次更新说明为准。
+跨平台安装、长时间真实模型专家团、任意 Office 文件保真和多人治理尚未完整验收。Harness 升级后需复验原生 UI 适配。具体测试范围以本次更新说明为准。
 
 ## 开源组件与致谢
 
