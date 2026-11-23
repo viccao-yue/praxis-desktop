@@ -1,4 +1,3 @@
-<p align="center"><img src="assets/brand/kaiwu-logo.svg" width="104" alt="kaiwu"></p>
 <h1 align="center">kaiwu</h1>
 <p align="center"><strong>把工作交给 AI，看清过程，拿到成果。</strong></p>
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
@@ -19,8 +18,6 @@ kaiwu 是基于官方 DeepSeek Harness 的开源 AI 工作台。把对话、资�
 
 桌面安装包内置 kaiwu Profile 与本仓库锁定的官方 DeepSeek Harness 运行时，包含 Node 与 Python。任务浏览器复用 Electron，不额外打包浏览器。校验文件与精确资源名见各次 [GitHub Release](https://github.com/viccao-yue/Praxis/releases)。
 
-![kaiwu 深色项目主页，包含完整侧栏](assets/screenshots/kaiwu-projects-dark.png)
-
 ## 可以做什么
 
 | 功能 | 能力 |
@@ -33,26 +30,6 @@ kaiwu 是基于官方 DeepSeek Harness 的开源 AI 工作台。把对话、资�
 | 活动记录 | 查看原生任务与子代理活动；显示专家团名称不代表多个成员已经执行。 |
 
 Desktop 中 Agent 操作的网页显示在右侧任务浏览器，与工具操作同一 Electron 页面。附件、输入和发送继续使用 Harness 原生能力。
-
-## 页面截图
-
-以下为本地工作区的完整应用截图。项目、已安装技能和账户数值是使用示例，不是安装包自带的数据。
-
-<details>
-<summary>浅色主题：项目主页</summary>
-
-![kaiwu 浅色项目主页，包含完整侧栏](assets/screenshots/kaiwu-projects-light.png)
-
-</details>
-
-<details>
-<summary>Office 示例：对话与 HTML 成果</summary>
-
-![对话与 HTML 分析看板](assets/screenshots/kaiwu-html-dashboard-preview.png)
-
-本地预览截图，用于展示成果工作流，不代表所有文档格式均已验收。
-
-</details>
 
 ## 快速开始
 
