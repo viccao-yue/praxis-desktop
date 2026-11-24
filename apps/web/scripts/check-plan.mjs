@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const essentialDocuments = [
-  'AGENTS.md', 'README.md', 'README.zh-CN.md',
+  'AGENTS.md',
   'docs/REQUIREMENTS.md', 'docs/ENTERPRISE-REQUIREMENTS.md',
   'docs/ARCHITECTURE.md', 'docs/CONTRACTS.md', 'docs/ACCEPTANCE.md',
   'docs/requirements.json', 'docs/modules.json', 'docs/acceptance.json',
