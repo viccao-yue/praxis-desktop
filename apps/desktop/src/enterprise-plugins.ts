@@ -1,4 +1,4 @@
-/** Enterprise delivery uses explicitly installed packages; never copies account data. */
+/** Enterprise delivery prefers the bundled 企业连接 Profile; never copies account data. */
 import {existsSync,mkdirSync,readFileSync,writeFileSync,readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {execFile} from 'node:child_process';
@@ -27,9 +27,23 @@ export function installedEnterprisePlugins(profile:string,version:string):string
  }
  return names;
 }
+/**
+ * Prefer a ready personal Profile, then the immutable bundled installer Profile.
+ * Incomplete personal materialization must not hide a complete bundled 企业连接.
+ */
+export function resolveEnterprisePluginSource(personalProfile:string,bundledProfile:string,version:string):string|undefined{
+ for(const profile of [personalProfile,bundledProfile]){
+  try{
+   if(installedEnterprisePlugins(profile,version).includes(enterprisePluginNames[0]))return profile;
+  }catch{
+   // Try the next candidate; half-installed personal Homes are common before first plugin sync.
+  }
+ }
+ return undefined;
+}
 export async function composeInstalledEnterprisePlugins(source:string,target:string,version:string,node:string,pnpm:string):Promise<string[]>{
  const names=installedEnterprisePlugins(source,version);
- if(!names.includes(enterprisePluginNames[0]))throw Error('请先在个人空间的插件管理中安装企业账号插件，再进行企业登录');
+ if(!names.includes(enterprisePluginNames[0]))throw Error('安装包缺少可用的企业连接组件，请使用含企业连接的完整安装包');
  const manifestFile=join(target,'package.json');const manifest=JSON.parse(readFileSync(manifestFile,'utf8'));
  const archives=join(target,'enterprise-plugin-archives');mkdirSync(archives,{recursive:true,mode:0o700});
  manifest.dependencies??={};

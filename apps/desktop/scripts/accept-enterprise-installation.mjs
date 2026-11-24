@@ -1,13 +1,16 @@
-/** Official UI installation acceptance in fresh isolated application data. */
+/** Official UI acceptance: bundled 企业连接 enables enterprise login without a separate archive install. */
 import { createRequire } from 'node:module'
 import { spawn, execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, createWriteStream, readFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, createWriteStream, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { once } from 'node:events'
 const require=createRequire(new URL('../../web/package.json',import.meta.url))
 const {chromium}=require('@playwright/test')
 const app=process.env.WORKDSH_TEST_APP ?? new URL('../dist/mac-smoke/arm64/mac-arm64/开物Praxis.app',import.meta.url).pathname
-for(const key of ['WORKDSH_TEST_ENTERPRISE_ARCHIVE','WORKDSH_TEST_ACCOUNTS','WORKDSH_TEST_BACKEND']) if(!process.env[key]) throw new Error('Missing acceptance configuration: '+key)
+for(const key of ['WORKDSH_TEST_ACCOUNTS','WORKDSH_TEST_BACKEND']) if(!process.env[key]) throw new Error('Missing acceptance configuration: '+key)
+const archive=process.env.WORKDSH_TEST_ENTERPRISE_ARCHIVE
+const forcePluginInstall=process.env.WORKDSH_TEST_FORCE_PLUGIN_INSTALL==='1'
+if(forcePluginInstall&&!archive) throw new Error('WORKDSH_TEST_FORCE_PLUGIN_INSTALL requires WORKDSH_TEST_ENTERPRISE_ARCHIVE')
 const directory=mkdtempSync('/private/tmp/workdsh-package-gui-')
 const report={app,directory,checks:{}}
 const env={...process.env,WORKDSH_DESKTOP_USER_DATA:join(directory,'user-data'),npm_config_registry:'https://registry.npmmirror.com'}
@@ -28,6 +31,8 @@ try {
  report.checks.connectionEntry=true
  await entry.screenshot({path:join(directory,'entry.png')})
  report.checks.enterpriseLoginReady=await entry.getByRole('button',{name:'企业登录',exact:true}).isEnabled()
+ if(!report.checks.enterpriseLoginReady) throw new Error('Bundled enterprise connection must enable 企业登录 on a clean install without a separate archive')
+
  await entry.getByRole('link',{name:'个人使用'}).click({noWaitAfter:true})
  const loading=await waitPage(p=>p.locator('[aria-busy=true]').count())
  report.checks.visibleLoadingTransition=true
@@ -42,15 +47,19 @@ try {
  report.checks.pluginsPresent=text.includes('插件')
  await personal.screenshot({path:join(directory,'personal.png')})
  const previewContinue=personal.getByRole('button',{name:'继续',exact:true});try{await previewContinue.waitFor({timeout:10000});await previewContinue.click()}catch(error){if(!/Timeout/.test(error.message))throw error}
- await personal.getByText('插件',{exact:true}).first().click();
- await personal.getByRole('button',{name:'添加插件',exact:true}).click();
- await personal.getByPlaceholder('例如 dsh-plugin-whale-pet').fill(process.env.WORKDSH_TEST_ENTERPRISE_ARCHIVE);
- await personal.getByRole('button',{name:'安装',exact:true}).click();
- await personal.getByRole('button',{name:'立即启用',exact:true}).waitFor({timeout:180000});
- await personal.getByRole('button',{name:'立即启用',exact:true}).click();
- await personal.getByText('插件安装中…',{exact:true}).waitFor({state:'hidden',timeout:180000});
- await personal.screenshot({path:join(directory,'installed-enterprise-plugin.png')});
- report.checks.installedThroughOfficialUi=true;
+
+ if(forcePluginInstall){
+  await personal.getByText('插件',{exact:true}).first().click();
+  await personal.getByRole('button',{name:'添加插件',exact:true}).click();
+  await personal.getByPlaceholder('例如 dsh-plugin-whale-pet').fill(archive);
+  await personal.getByRole('button',{name:'安装',exact:true}).click();
+  await personal.getByRole('button',{name:'立即启用',exact:true}).waitFor({timeout:180000});
+  await personal.getByRole('button',{name:'立即启用',exact:true}).click();
+  await personal.getByText('插件安装中…',{exact:true}).waitFor({state:'hidden',timeout:180000});
+  await personal.screenshot({path:join(directory,'installed-enterprise-plugin.png')});
+  report.checks.installedThroughOfficialUi=true;
+ }
+
  await personal.getByText('设置',{exact:true}).first().click();
  await personal.getByText('企业账号',{exact:true}).first().click();
  await personal.getByRole('button',{name:'连接企业',exact:true}).waitFor({timeout:30000});
@@ -59,6 +68,7 @@ try {
  const connectedEntry=await waitPage(p=>p.getByRole('heading',{name:'选择使用方式'}).count(),30000);
  report.checks.pluginConnectEntry=true;
  report.checks.enterpriseLoginEnabled=await connectedEntry.getByRole('button',{name:'企业登录',exact:true}).isEnabled();
+ if(!report.checks.enterpriseLoginEnabled) throw new Error('Enterprise login must remain enabled after personal workspace start')
  await connectedEntry.locator('#portal').fill(process.env.WORKDSH_TEST_BACKEND);
  await connectedEntry.getByRole('button',{name:'企业登录',exact:true}).click({noWaitAfter:true});
  const loginPage=await waitPage(p=>p.locator('#account').count());
@@ -88,22 +98,28 @@ try {
  const returnedPersonal=await waitPage(p=>/^http:\/\/127\.0\.0\.1:/.test(p.url())&&p.getByText('新会话',{exact:true}).count(),120000);
  await returnedPersonal.getByText('项目',{exact:true}).first().waitFor();
  report.checks.personalAfterLogout=true;
- await returnedPersonal.getByText('插件',{exact:true}).first().click();
- await returnedPersonal.getByText('workdsh-enterprise-connection',{exact:true}).click();
- await returnedPersonal.getByRole('button',{name:/卸载.*workdsh-enterprise-connection/}).click();
- await returnedPersonal.getByRole('button',{name:'卸载',exact:true}).click();
- await returnedPersonal.getByText('workdsh-enterprise-connection',{exact:false}).first().waitFor({state:'hidden',timeout:60000});
- report.checks.uninstalledThroughOfficialUi=true;
- const personalManifest=JSON.parse(readFileSync(join(env.WORKDSH_DESKTOP_USER_DATA,'dsh-home/profiles/kaiwu/package.json'),'utf8'));
- report.checks.enterpriseDependencyRemoved=!personalManifest.dependencies?.['workdsh-enterprise-connection'];
- await returnedPersonal.getByRole('button',{name:'添加插件',exact:true}).click();
- await returnedPersonal.getByPlaceholder('例如 dsh-plugin-whale-pet').fill(process.env.WORKDSH_TEST_ENTERPRISE_ARCHIVE);
- await returnedPersonal.getByRole('button',{name:'安装',exact:true}).click();
- await returnedPersonal.getByRole('button',{name:'立即启用',exact:true}).waitFor({timeout:180000});
- await returnedPersonal.getByRole('button',{name:'立即启用',exact:true}).click();
- await returnedPersonal.getByText('插件安装中…',{exact:true}).waitFor({state:'hidden',timeout:180000});
- report.checks.reinstalledThroughOfficialUi=true;
 
+ if(forcePluginInstall){
+  await returnedPersonal.getByText('插件',{exact:true}).first().click();
+  await returnedPersonal.getByText('workdsh-enterprise-connection',{exact:true}).click();
+  await returnedPersonal.getByRole('button',{name:/卸载.*workdsh-enterprise-connection/}).click();
+  await returnedPersonal.getByRole('button',{name:'卸载',exact:true}).click();
+  await returnedPersonal.getByText('workdsh-enterprise-connection',{exact:false}).first().waitFor({state:'hidden',timeout:60000});
+  report.checks.uninstalledThroughOfficialUi=true;
+  const personalManifest=JSON.parse(readFileSync(join(env.WORKDSH_DESKTOP_USER_DATA,'dsh-home/profiles/kaiwu/package.json'),'utf8'));
+  report.checks.enterpriseDependencyRemoved=!personalManifest.dependencies?.['workdsh-enterprise-connection'];
+  await returnedPersonal.getByRole('button',{name:'添加插件',exact:true}).click();
+  await returnedPersonal.getByPlaceholder('例如 dsh-plugin-whale-pet').fill(archive);
+  await returnedPersonal.getByRole('button',{name:'安装',exact:true}).click();
+  await returnedPersonal.getByRole('button',{name:'立即启用',exact:true}).waitFor({timeout:180000});
+  await returnedPersonal.getByRole('button',{name:'立即启用',exact:true}).click();
+  await returnedPersonal.getByText('插件安装中…',{exact:true}).waitFor({state:'hidden',timeout:180000});
+  report.checks.reinstalledThroughOfficialUi=true;
+ }else{
+  const bundledConnection=join(app,'Contents/Resources/workdsh-runtime/profiles/kaiwu/node_modules/workdsh-enterprise-connection/package.json')
+  report.checks.bundledEnterpriseConnectionPresent=existsSync(bundledConnection)
+  if(!report.checks.bundledEnterpriseConnectionPresent) throw new Error('Packaged Profile is missing workdsh-enterprise-connection')
+ }
 
  const resources=join(app,'Contents/Resources/workdsh-runtime')
  const output=execFileSync(join(resources,'runtime/cli/bin/dsh'),['--version'],{env,encoding:'utf8',timeout:30000})

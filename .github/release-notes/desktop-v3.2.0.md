@@ -19,7 +19,8 @@
 - Windows x64：`kaiwu-3.2.0-x64-Setup.exe`。
 - macOS Apple Silicon：`kaiwu-3.2.0-arm64.dmg`。
 - macOS Intel：`kaiwu-3.2.0-x64.dmg`。
-- 企业连接另提供独立归档；基础包内为 optional 附带，个人模式不启用企业身份与协作。
+- 基础安装包已内置企业连接：客户只需安装 Setup/DMG，入口即可直接「企业登录」；个人模式仍不启用企业身份与协作。
+- Release 中的企业连接独立归档仅供应急补装或单独升级，不是常规交付步骤。
 - 附件名称带构建平台前缀；下载后可依据 `SHA256SUMS` 核对完整性。本次 macOS DMG 未签名。
 
 Desktop 与 Web 的 DSH Host、Client 和 SDK npm 包统一为 `0.2.1-rc.2`。Intel 的 Node、pnpm、Python、Office 资源及预编译工具仍来自单独校验的官方 `0.2.1-rc.1` Intel 归档。

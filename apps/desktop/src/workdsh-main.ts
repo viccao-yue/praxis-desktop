@@ -1,4 +1,4 @@
-import {composeInstalledEnterprisePlugins,installedEnterprisePlugins} from './enterprise-plugins.ts'
+import {composeInstalledEnterprisePlugins,installedEnterprisePlugins,resolveEnterprisePluginSource} from './enterprise-plugins.ts'
 /** Minimal Electron carrier for the bundled 开物Praxis release profile. */
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
@@ -162,7 +162,7 @@ function openWindow(url: string, connection: DesktopConnection = { mode: 'person
     page.webContents.on('will-navigate', (event, target) => {
       if (isReturnToEntryUrl(target) && window === page && !switching) {
         event.preventDefault()
-        if (!enterprisePluginAvailable()) { dialog.showErrorBox('企业插件不可用', '请先安装兼容的企业账号插件。'); return }
+        if (!enterprisePluginAvailable()) { dialog.showErrorBox('企业连接不可用', '本安装包缺少可用的企业连接组件，请联系管理员更换完整安装包。'); return }
         void returnToEntry()
         return
       }
@@ -441,19 +441,9 @@ function dshVersion(): string {
   return JSON.parse(readFileSync(join(bundledProfileDirectory(), 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), 'utf8')).version
 }
 
-/** Prefer the personal Profile; fall back to the bundled optional 企业连接 media. */
+/** Prefer the personal Profile; fall back to the bundled 企业连接 media shipped in the installer. */
 function enterprisePluginSource(): string | undefined {
-  const version = dshVersion()
-  const personal = join(runtimeHome(), 'profiles', PROFILE_NAME)
-  try {
-    if (installedEnterprisePlugins(personal, version).includes('workdsh-provider-identity-enterprise')) return personal
-  } catch { /* personal package.json may declare the connection before install finishes */ }
-  try {
-    if (installedEnterprisePlugins(bundledProfileDirectory(), version).includes('workdsh-provider-identity-enterprise')) {
-      return bundledProfileDirectory()
-    }
-  } catch { return undefined }
-  return undefined
+  return resolveEnterprisePluginSource(join(runtimeHome(), 'profiles', PROFILE_NAME), bundledProfileDirectory(), dshVersion())
 }
 
 function enterprisePluginAvailable(): boolean {
@@ -466,7 +456,7 @@ async function activateEnterprise(existingHome: boolean): Promise<void> {
   await session.login.verify()
   if (quitRequested) throw new Error('启动已取消')
   const source = enterprisePluginSource()
-  if (!source) throw new Error('请先安装兼容的企业账号插件')
+  if (!source) throw new Error('安装包缺少可用的企业连接组件，请使用含企业连接的完整安装包')
   const pluginNames = await composeInstalledEnterprisePlugins(
     source,
     join(session.home, 'profiles', PROFILE_NAME),
