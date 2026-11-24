@@ -45,6 +45,7 @@ export async function composeInstalledEnterprisePlugins(source:string,target:str
  }
  for(const name of enterprisePluginNames)if(!names.includes(name)){delete manifest.dependencies[name];delete manifest.optionalDependencies?.[name];}
  writeFileSync(manifestFile,JSON.stringify(manifest,null,2)+'\n',{mode:0o600});
- await execute(node,[pnpm,'--dir',target,'install','--prod','--force'],{cwd:target,timeout:240000});
+ // Desktop has no TTY; do not abort when pnpm must rebuild node_modules.
+ await execute(node,[pnpm,'--dir',target,'install','--prod','--force','--config.confirmModulesPurge=false'],{cwd:target,timeout:240000,env:{...process.env,CI:'true'}});
  return names;
 }

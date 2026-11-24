@@ -14,15 +14,16 @@ function fakePnpm(home: string, version = '11.28.5'): string {
   writeFileSync(entry, 'console.log(JSON.stringify(process.argv.slice(2)))')
   return entry
 }
-const fixedPnpm11 = ['--pm-on-fail=ignore', '--config.verify-deps-before-run=false']
+const fixedPnpm11 = ['--pm-on-fail=ignore', '--config.verify-deps-before-run=false', '--config.confirmModulesPurge=false']
+const fixedPnpm10 = ['--config.manage-package-manager-versions=false', '--config.package-manager-strict=false', '--config.confirmModulesPurge=false']
 test('local archives are retained by content and pnpm records the managed path', () => {
   const home = mkdtempSync(join(tmpdir(), 'workdsh-plugin-cache-')); homes.push(home)
   const fake = fakePnpm(home)
   const source = join(home, 'download with spaces.tgz'); writeFileSync(source, 'archive content')
   const runner = cachedPackageManager(home, fake)
   const received = JSON.parse(execFileSync(process.execPath, [runner, 'add', source, '--save-exact'], { encoding: 'utf8' })) as string[]
-  expect(received.slice(0, 2)).toEqual(fixedPnpm11)
-  const args = received.slice(2)
+  expect(received.slice(0, fixedPnpm11.length)).toEqual(fixedPnpm11)
+  const args = received.slice(fixedPnpm11.length)
   expect(args[0]).toBe('add'); expect(args[2]).toBe('--save-exact')
   expect(args[1]).toMatch(/plugin-archives[/\\][a-f0-9]{64}\.tgz$/)
   rmSync(source)
@@ -43,7 +44,7 @@ test('registry installs pass through and personal/member caches are separate', (
 test('uses the older pnpm policy only with an older bundled engine and rejects invalid metadata', () => {
   const home = mkdtempSync(join(tmpdir(), 'workdsh-plugin-cache-')); homes.push(home)
   const fake = fakePnpm(home, '10.34.5'), runner = cachedPackageManager(home, fake)
-  expect(JSON.parse(execFileSync(process.execPath, [runner, 'install'], { encoding: 'utf8' }))).toEqual(['--config.manage-package-manager-versions=false', '--config.package-manager-strict=false', 'install'])
+  expect(JSON.parse(execFileSync(process.execPath, [runner, 'install'], { encoding: 'utf8' }))).toEqual([...fixedPnpm10, 'install'])
   writeFileSync(join(home, 'engine', 'package.json'), JSON.stringify({ name: 'another-manager', version: '11.28.5' }))
   expect(() => cachedPackageManager(home, fake)).toThrow('内置插件安装工具清单无效')
 })
