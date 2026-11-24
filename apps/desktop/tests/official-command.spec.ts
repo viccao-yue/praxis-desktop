@@ -48,6 +48,11 @@ test('retains final CLI errors and redacts credentials split across writes', asy
   expect(log).not.toContain('sensitive-value')
 }, integrationTimeout)
 
+test('explains modules-dir purge aborted without a TTY', async () => {
+  const options = fixture(`console.error('ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY Aborted removal of modules directory due to no TTY'); process.exitCode = 1`)
+  await expect(runOfficialCommand(options)).rejects.toThrow(/依赖目录需要重建|node_modules/)
+}, integrationTimeout)
+
 test('successful CLI completion does not report an installation failure', async () => {
   await expect(runOfficialCommand(fixture(`console.log('done')`))).resolves.toBeUndefined()
 }, integrationTimeout)
