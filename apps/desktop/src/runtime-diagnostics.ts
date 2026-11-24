@@ -70,6 +70,12 @@ export function officialCommandFailureDetail(code: number | null, output: string
   if (incompatible && !cause) {
     return `插件 ${incompatible[1]} 与当前 DSH ${incompatible[2]} 不兼容。\n\n请安装适配当前底座的插件版本。${/restored package\.json, pnpm-lock\.yaml, and node_modules/u.test(output) ? '原有插件清单和依赖已恢复。' : '本次插件更新未完成。'}`;
   }
+  if (/ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY/u.test(output) && !cause) {
+    return [
+      `插件依赖更新失败 (${code})`,
+      '依赖目录需要重建，但桌面安装过程无法弹出确认。请退出开物后删除该工作区 Profile 下的 node_modules，再重新进入；或改用已包含此修复的安装包。',
+    ].join('\n\n');
+  }
   const lines = redactRuntimeOutput(output).replace(/\u001b\[[0-9;]*m/gu, '').split('\n')
     .map(line => line.trim()).filter(line => line && !/^(?:at\s|file:\/\/)/u.test(line));
   const errors = lines.filter(line => /(?:ERR_|\bError\b|\bfailed\b|EACCES|EPERM|ENOENT|ENOTFOUND|EAI_AGAIN)/iu.test(line));

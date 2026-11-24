@@ -9,9 +9,11 @@ export function cachedPackageManager(home: string, pnpm: string): string {
   }
   // The application supplies this executable. A Profile's packageManager pin
   // must not make pnpm fetch or run another engine before the official command.
+  // Desktop spawns pnpm without a TTY; allow modules-dir rebuild without an
+  // interactive confirm (otherwise ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY).
   const fixedManager = Number(manifest.version.split('.')[0]) >= 11
-    ? ['--pm-on-fail=ignore', '--config.verify-deps-before-run=false']
-    : ['--config.manage-package-manager-versions=false', '--config.package-manager-strict=false']
+    ? ['--pm-on-fail=ignore', '--config.verify-deps-before-run=false', '--config.confirmModulesPurge=false']
+    : ['--config.manage-package-manager-versions=false', '--config.package-manager-strict=false', '--config.confirmModulesPurge=false']
   const runner = join(home, '.workdsh-package-manager.mjs')
   writeFileSync(runner, String.raw`import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
