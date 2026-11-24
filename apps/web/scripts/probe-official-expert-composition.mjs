@@ -166,7 +166,7 @@ try {
   await load('@deepseek-ai/dsh-subagent-fork-in-process', { providerName: 'fork' });
   await load('@deepseek-ai/dsh-skill');
   ctx.llm.registerAdapter(['fixture'], new FixtureModel());
-  await load(teamModule, { maxMembers: 16, disposalTimeoutMs: 4000 });
+  await load(teamModule);
   await load(toolModule);
   const presetRoot = join(home, 'presets');
   if (!resumeHome) {

@@ -108,7 +108,14 @@ const PERSONAL_SIDEBAR_DEFAULTS = `- id: better-sidebar
 const CONTEXT_PACKAGE = 'dsh-context'
 const CONTEXT_DEFAULTS = 'praxis-default-context.patch.yml'
 // The official Profile accepts !!js expressions. Preserve the tag without evaluating it.
-class ProfileExpression { constructor(readonly source: string) {} }
+// Avoid TypeScript parameter properties: packaged Host checks run this file under
+// the bundled Node strip-only loader, which rejects that syntax.
+class ProfileExpression {
+  source: string
+  constructor(source: string) {
+    this.source = source
+  }
+}
 const PROFILE_PATCH_SCHEMA = DEFAULT_SCHEMA.extend(new Type('tag:yaml.org,2002:js', {
   kind: 'scalar', construct: value => new ProfileExpression(value),
   instanceOf: ProfileExpression, represent: (value: ProfileExpression) => value.source,
