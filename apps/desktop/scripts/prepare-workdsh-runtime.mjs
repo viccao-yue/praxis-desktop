@@ -306,4 +306,4 @@ if (!prepared) {
   }
 }
 cpSync(join(profile, 'package.json'), join(output, 'profile-package.json'))
-console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) and optional enterprise connection at ${output}`)
+console.log(`Prepared official DSH ${DSH_VERSION} with ${PRODUCT_PACKAGES.length} default features, personal extras (${PERSONAL_DEFAULT_EXTRA_BUNDLES.join(', ')}) and bundled enterprise connection at ${output}`)

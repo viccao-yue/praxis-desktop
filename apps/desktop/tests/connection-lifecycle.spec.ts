@@ -11,7 +11,11 @@ vi.mock('../src/enterprise-auth.ts', () => ({
   EnterpriseLogin: { login: async (origin: string) => { state.logins.push(origin); return { backendUrl: origin, actor, verify: state.verify, logout: state.logout, cancelRequests() {} } } },
   startEnterpriseAuthority: async () => ({ url: 'http://127.0.0.1:19898', key: 'a'.repeat(64), close: state.closed }),
 }))
-vi.mock('../src/enterprise-plugins.ts',()=>({installedEnterprisePlugins:vi.fn(()=>['workdsh-provider-identity-enterprise','workdsh-plugin-enterprise-collaboration']),composeInstalledEnterprisePlugins:vi.fn(async()=>['workdsh-provider-identity-enterprise','workdsh-plugin-enterprise-collaboration'])}))
+vi.mock('../src/enterprise-plugins.ts',()=>({
+  installedEnterprisePlugins:vi.fn(()=>['workdsh-provider-identity-enterprise','workdsh-plugin-enterprise-collaboration']),
+  composeInstalledEnterprisePlugins:vi.fn(async()=>['workdsh-provider-identity-enterprise','workdsh-plugin-enterprise-collaboration']),
+  resolveEnterprisePluginSource:vi.fn((_personal:string,bundled:string)=>bundled),
+}))
 vi.mock('../src/owned-process.ts', () => ({ trackOwnedProcess: vi.fn(), stopOwnedProcess: state.stop, cleanOwnedProcessTree: vi.fn(async () => {}) }))
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }))
 vi.mock('electron', async () => {
@@ -41,7 +45,7 @@ vi.mock('electron', async () => {
   }
 })
 
-it('enforces the packaged backend, uses explicitly installed enterprise identity, and clears locally despite remote logout failure', async () => {
+it('enforces the packaged backend, uses bundled enterprise identity, and clears locally despite remote logout failure', async () => {
   const root = mkdtempSync(join(tmpdir(), 'workdsh-lifecycle-')); state.userData = join(root, 'desktop')
   const resourcesDescriptor = Object.getOwnPropertyDescriptor(process, 'resourcesPath')
   Object.defineProperty(process, 'resourcesPath', { value: join(root, 'resources'), configurable: true })

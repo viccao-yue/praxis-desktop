@@ -75,10 +75,10 @@ export function connectionEntryHtml(portal: string, managed: boolean = false, en
     : `<div class="field" id="server-field"><label for="portal">企业后台地址</label><div class="control"><input class="mono" id="portal" name="portal" type="url" required placeholder="https://企业地址" value="${escaped}" autocomplete="url" spellcheck="false"></div></div>`
   const enterpriseAction = enterpriseAvailable
     ? `<form class="enterprise-continue" action="praxis://enterprise" method="get">${portalField}<button class="submit" type="submit">下一步</button><a class="back" href="praxis://enterprise-import">导入企业连接文件</a></form>`
-    : `<div class="enterprise-continue">${portalField}<button class="submit" type="button" disabled>请先安装企业账号插件</button><p class="plugin-hint">进入个人空间，在插件管理中安装企业插件，再从工作区菜单切换到企业登录。</p></div>`
+    : `<div class="enterprise-continue">${portalField}<button class="submit" type="button" disabled>企业连接不可用</button><p class="plugin-hint">完整安装包已内置企业连接。若此处仍不可用，请联系管理员更换安装包；独立企业连接归档仅用于应急补装。</p></div>`
   const enterpriseOption = enterpriseAvailable
     ? `<label class="option" data-mode="enterprise"><input type="radio" name="mode" value="enterprise"><span class="txt"><strong>企业登录</strong><small>连接企业后台，使用企业空间与统一权限</small></span><span class="radio" aria-hidden="true"></span></label>`
-    : `<label class="option is-disabled" data-mode="enterprise" aria-disabled="true"><input type="radio" name="mode" value="enterprise" disabled><span class="txt"><strong>企业登录</strong><small>请先安装企业账号插件后再使用</small></span><span class="radio" aria-hidden="true"></span></label>`
+    : `<label class="option is-disabled" data-mode="enterprise" aria-disabled="true"><input type="radio" name="mode" value="enterprise" disabled><span class="txt"><strong>企业登录</strong><small>本安装包缺少可用的企业连接组件</small></span><span class="radio" aria-hidden="true"></span></label>`
 
   const stage = `
       <div class="screen is-active" id="s-mode">

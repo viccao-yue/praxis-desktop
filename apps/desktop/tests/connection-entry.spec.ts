@@ -32,9 +32,10 @@ it('selects loading copy by explicit kind instead of title heuristics', () => {
   expect(connectionLoadingHtml('personal')).toContain('正在启动个人工作区')
 })
 
-it('requires installing the enterprise account plugin before showing an active login action', () => {
+it('disables enterprise login when the bundled connection component is unavailable', () => {
   const html = connectionEntryHtml('https://company.example', false, false)
-  expect(html).toContain('请先安装企业账号插件')
+  expect(html).toContain('企业连接不可用')
+  expect(html).toContain('完整安装包已内置企业连接')
   expect(html).toContain('type="button" disabled')
   expect(html).toContain('praxis://personal')
   expect(html).not.toContain('action="praxis://enterprise"')

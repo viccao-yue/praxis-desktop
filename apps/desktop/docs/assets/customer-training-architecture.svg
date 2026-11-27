@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="474" viewBox="0 0 920 474" role="img" aria-labelledby="title">
+  <title id="title">开物 Praxis 三层架构</title>
+  <rect width="920" height="474" rx="24" fill="#F2F6FA"/>
+  <g font-family="PingFang SC, Microsoft YaHei, sans-serif">
+    <text x="34" y="45" fill="#16324B" font-size="24" font-weight="700">开物 Praxis · 三层架构</text>
+    <g transform="translate(0,67)">
+    <rect x="34" width="742" height="95" rx="14" fill="#fff" stroke="#D6E1EB" stroke-width="1.5"/>
+    <rect x="54" y="25" width="45" height="45" rx="11" fill="#E4EFF8"/>
+    <text x="76.5" y="54" fill="#18567E" font-size="17" font-weight="700" text-anchor="middle">01</text>
+    <text x="119" y="40" fill="#16324B" font-size="23" font-weight="700">员工端 · 开物 Desktop</text>
+    <text x="120" y="70" fill="#41596C" font-size="17">员工在桌面端问、查、写，智能体及本机文件工具在电脑上运行</text>
+  </g>
+    <g transform="translate(0,196)">
+    <rect x="34" width="742" height="95" rx="14" fill="#fff" stroke="#D6E1EB" stroke-width="1.5"/>
+    <rect x="54" y="25" width="45" height="45" rx="11" fill="#E4EFF8"/>
+    <text x="76.5" y="54" fill="#18567E" font-size="17" font-weight="700" text-anchor="middle">02</text>
+    <text x="119" y="40" fill="#16324B" font-size="23" font-weight="700">企业侧 · 开物 Enterprise（按项目开通）</text>
+    <text x="120" y="70" fill="#41596C" font-size="17">管理组织、成员和权限，按开通范围提供协作及模型转发</text>
+  </g>
+    <g transform="translate(0,325)">
+    <rect x="34" width="742" height="95" rx="14" fill="#fff" stroke="#D6E1EB" stroke-width="1.5"/>
+    <rect x="54" y="25" width="45" height="45" rx="11" fill="#E4EFF8"/>
+    <text x="76.5" y="54" fill="#18567E" font-size="17" font-weight="700" text-anchor="middle">03</text>
+    <text x="119" y="40" fill="#16324B" font-size="23" font-weight="700">客户模型与业务服务</text>
+    <text x="120" y="70" fill="#41596C" font-size="17">本地模型或公司网关、OCR 服务、知识相关服务</text>
+  </g>
+    <g fill="none" stroke="#2C658C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M76 167v23m-5-6 5 6 5-6"/>
+      <path d="M776 114h55v258h-55m6-5-6 5 6 5"/>
+    </g>
+    <path d="M76 295v23m-5-6 5 6 5-6" fill="none" stroke="#627689" stroke-width="2.4" stroke-dasharray="4 3"/>
+    <g fill="#41596C" font-size="15">
+      <text x="120" y="184">企业登录与授权</text>
+      <text x="120" y="313">企业侧可按配置转发模型请求</text>
+      <text x="848" y="221">按配置</text>
+      <text x="848" y="245">调用</text>
+      <text x="848" y="269">服务</text>
+      <text x="34" y="450">箭头表示访问路径，不表示把智能体或本机文件操作移到服务器执行。</text>
+    </g>
+  </g>
+</svg>
