@@ -144,6 +144,24 @@ const PROFILE_PATCH_SCHEMA = DEFAULT_SCHEMA.extend(new YamlType('tag:yaml.org,20
   kind: 'scalar', construct: value => new ProfileExpression(value),
   instanceOf: ProfileExpression, represent: value => value.source,
 }))
+
+export function verifyContextComposition(config, defaults) {
+  const expected = loadYaml(defaults)[0].config
+  const matches = []
+  function collect(value) {
+    if (!value || typeof value !== 'object') return
+    if (value.id === 'dsh-context' && value.name === 'dsh-context') matches.push(value)
+    for (const child of Object.values(value)) collect(child)
+  }
+  collect(loadYaml(config, { schema: PROFILE_PATCH_SCHEMA }))
+  if (matches.length !== 1 || matches[0].disabled === true) {
+    throw new Error('Expected exactly one enabled dsh-context entry in the Desktop composition')
+  }
+  for (const [key, value] of Object.entries(expected)) {
+    if (matches[0].config?.[key] !== value) throw new Error('Missing Desktop dsh-context default: ' + key)
+  }
+}
+
 /** Compose owned overlay documents as YAML values, including empty overlays. */
 export function composeProfilePatches(documents) {
   const operations = documents.flatMap(document => {

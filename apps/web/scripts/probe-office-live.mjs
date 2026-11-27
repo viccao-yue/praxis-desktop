@@ -294,8 +294,8 @@ export function apply(ctx){ctx.effect(()=>ctx.connection.fetch.register({path:'/
   if(!['content_open','content_read','content_capabilities','content_edit','content_present','content_export'].includes(r.name))throw Error('tool not allowed');
   const resolved=await ctx.workdshSessionAccess.resolveAgent(r.sessionId,request.signal);
   if(!resolved.agent)throw Error(JSON.stringify(resolved));
-  const result=await ctx.tools.execute({name:r.name,arguments:r.args,callId:r.callId,agent:resolved.agent,signal:request.signal});
-  if(result.isError)throw Error(JSON.stringify(result));value=result.value;
+  const batch=await ctx.tools.execute({calls:[{type:'tool-call',id:r.callId,name:r.name,arguments:JSON.stringify(r.args??{})}],agent:resolved.agent,signal:request.signal});
+  const result=batch.results?.[0]?.result;if(!result||result.isError)throw Error(JSON.stringify(result??batch));value=result.value;
  }else throw Error('unknown probe action');
  return Response.json({ok:true,value});
  }catch(e){return Response.json({ok:false,error:String(e)})}}}));}`,

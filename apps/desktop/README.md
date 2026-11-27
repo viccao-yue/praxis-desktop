@@ -32,7 +32,7 @@ Packaging writes the validated configuration to `workdsh-config.json` in applica
 
 ## Development and validation
 
-Use Node.js `^22.19.0` or `>=24` and Corepack Yarn 4.18.0. At the repository root:
+Use Node.js `>=24.9.0` and Corepack Yarn 4.18.0. At the repository root:
 
 ```sh
 corepack yarn install --immutable
@@ -57,7 +57,7 @@ corepack yarn check:desktop-dsh-alignment
 
 Build the shared features and their required support packages first. `pack-workdsh-profile.mjs` creates immutable archives and a version/hash manifest in `build/workdsh-profile-release`; select another candidate with `WORKDSH_RELEASE_DIRECTORY`. Runtime preparation installs the official version with a portable lockfile and carries pnpm's JavaScript CLI for explicit plugin operations. The package inventory in `scripts/workdsh-package-boundary.mjs` defines the reviewed default bundles and required support packages; enterprise plugins are excluded from the base installer. The same Profile preserves the pinned SkillHub 0.2.16 and dshmarket 1.66.8 catalog integrations. Their catalog entries are not all installed or reviewed by kaiwu. It does not package a live user's configuration or credentials.
 
-`upstream.json` locks the actual Desktop and Web Host, Client and SDK npm packages to the same official **DSH 0.2.1-rc.2** release, as explicitly required by the user. Product builds consume published packages without importing or compiling official source. Existing applications and Profiles have their own actual versions. Alignment, Desktop checks and packaged-runtime acceptance must pass before declaring an upgrade complete; Web preview evidence cannot replace them. Prefer validated official stable releases by default.
+`upstream.json` locks the actual Desktop and Web Host, Client and SDK npm packages to the same official **DSH 0.2.2-rc.5** release, as explicitly required by the user. Product builds consume published packages without importing or compiling official source. Existing applications and Profiles have their own actual versions. Alignment, Desktop checks and packaged-runtime acceptance must pass before declaring an upgrade complete; Web preview evidence cannot replace them. Prefer validated official stable releases by default.
 
 Official Desktop archives separately supply Node, pnpm, Python, Office assets and prebuilt command helpers. Each target records its actual archive version, URL, size and SHA-512. Intel tools explicitly use the official `0.2.1-rc.1` archive because an Intel `rc.2` archive is not published; the original runtime metadata is preserved. This does not downgrade the DSH npm packages or enable automatic fallback. Intel publication requires verification against its actual packaged x64 Resources.
 

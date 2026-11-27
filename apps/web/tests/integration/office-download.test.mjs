@@ -214,6 +214,19 @@ test("Host rejects unsafe style values and invalid list levels without partial c
 });
 after(() => rm(temp, { recursive: true, force: true }));
 
+function batchCallName(input) {
+  return input.calls?.[0]?.name;
+}
+
+function batchCallArgs(input) {
+  const raw = input.calls?.[0]?.arguments;
+  return typeof raw === "string" ? JSON.parse(raw) : raw ?? {};
+}
+
+function batchResult(result) {
+  return { results: [{ result }], additionalContexts: [] };
+}
+
 test("Export delegates binary write and delivery to the official tool pipeline, never presents a failed write", async () => {
   const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
@@ -235,24 +248,25 @@ test("Export delegates binary write and delivery to the official tool pipeline, 
     },
     execute: async (input) => {
       calls.push(input);
-      assert.equal(input.parent, exec.token);
       assert.equal(input.agent, exec.agent);
-      if (input.name === "bash") {
+      const name = batchCallName(input);
+      const args = batchCallArgs(input);
+      if (name === "bash") {
         const { stdout } = await promisify(execFile)(
           "bash",
-          ["-c", input.arguments.command],
+          ["-c", args.command],
           { cwd },
         );
-        return {
+        return batchResult({
           isError: false,
           content: [{ type: "text", text: stdout }],
           value: {},
-        };
+        });
       }
-      const file = await readFile(join(cwd, input.arguments.files[0].path));
+      const file = await readFile(join(cwd, args.files[0].path));
       const zip = await JSZip.loadAsync(file);
       assert.match(await zip.file("word/document.xml").async("string"), /标题/);
-      return { isError: false, content: [], value: {} };
+      return batchResult({ isError: false, content: [], value: {} });
     },
   };
   try {
@@ -261,24 +275,24 @@ test("Export delegates binary write and delivery to the official tool pipeline, 
     assert.equal(result.status, "presented");
     assert.equal(result.revision, snapshot.revision);
     assert.deepEqual(
-      calls.map((x) => x.name),
+      calls.map((x) => batchCallName(x)),
       ["bash", "present"],
     );
     calls.length = 0;
     tools.execute = async (input) => {
       calls.push(input);
-      return {
+      return batchResult({
         isError: false,
         content: [{ type: "text", text: "[exit code: 1]" }],
         value: {},
-      };
+      });
     };
     await assert.rejects(
       () => exportAndPresent({ tools }, exec, snapshot),
       /写入失败/,
     );
     assert.deepEqual(
-      calls.map((x) => x.name),
+      calls.map((x) => batchCallName(x)),
       ["bash"],
     );
     await assert.rejects(
@@ -299,16 +313,18 @@ test("Export recovers a lost write receipt without duplicate files, refuses chan
   const exec = {agent: {}, callId: "retry", rootCallId: "retry", token: {}, signal: controller.signal, deferContext() {}};
   let mode = "lost-write", presented = 0, writes = 0;
   const tools = {get: () => true, execute: async input => {
-    if (input.name === "bash") {
+    const name = batchCallName(input);
+    const args = batchCallArgs(input);
+    if (name === "bash") {
       writes++;
-      const {stdout} = await promisify(execFile)("bash", ["-c", input.arguments.command], {cwd});
+      const {stdout} = await promisify(execFile)("bash", ["-c", args.command], {cwd});
       if (mode === "lost-write") throw Error("Connection lost after write");
       if (mode === "cancel-after-write") controller.abort();
-      return {isError: false, content: [{type: "text", text: stdout}]};
+      return batchResult({isError: false, content: [{type: "text", text: stdout}]});
     }
     presented++;
     if (mode === "lost-present") throw Error("Delivery connection lost");
-    return {isError: false, content: []};
+    return batchResult({isError: false, content: []});
   }};
   try {
     await assert.rejects(() => exportAndPresent({tools}, exec, snapshot, 2), /写入结果未知/);
@@ -347,9 +363,9 @@ test("Export recovers a lost write receipt without duplicate files, refuses chan
 
 test('HTML export sends the original committed source through official bash and present',async()=>{
  const html='<!doctype html><html lang="zh-CN"><body><h1>预算看板</h1></body></html>',calls=[];
- const ctx={tools:{get:()=>({}),execute:async call=>{calls.push(call);if(call.name==='bash'){const encoded=call.arguments.command.match(/b=Buffer.from\("([A-Za-z0-9+/=]+)","base64"\)/)[1];assert.equal(Buffer.from(encoded,'base64').toString('utf8'),html);return {content:[{type:'text',text:call.arguments.command.match(/OFFICE_EXPORTED_[a-f0-9-]+/)[0]}]};}return {content:[]};}}};
+ const ctx={tools:{get:()=>({}),execute:async call=>{calls.push(call);const name=batchCallName(call);const args=batchCallArgs(call);if(name==='bash'){const encoded=args.command.match(/b=Buffer.from\("([A-Za-z0-9+/=]+)","base64"\)/)[1];assert.equal(Buffer.from(encoded,'base64').toString('utf8'),html);return batchResult({content:[{type:'text',text:args.command.match(/OFFICE_EXPORTED_[a-f0-9-]+/)[0]}]});}return batchResult({content:[]});}}};
  const exec={signal:new AbortController().signal,agent:{},callId:'html-export',deferContext(){}};
  const result=await exportAndPresent(ctx,exec,{documentId:'html1',kind:'html',title:'预算看板',revision:2,generation:'one',state:{modelVersion:1,html}},2);
- assert.ok(result.path.endsWith('.html'));assert.equal(result.status,'presented');assert.equal(calls[1].name,'present');assert.equal(calls[1].arguments.files[0].path,result.path);
+ assert.ok(result.path.endsWith('.html'));assert.equal(result.status,'presented');assert.equal(batchCallName(calls[1]),'present');assert.equal(batchCallArgs(calls[1]).files[0].path,result.path);
  await assert.rejects(exportAndPresent(ctx,exec,{documentId:'html1',kind:'html',title:'预算看板',revision:2,generation:'one',state:{modelVersion:1,html}},1),/REVISION_CONFLICT/);
 });

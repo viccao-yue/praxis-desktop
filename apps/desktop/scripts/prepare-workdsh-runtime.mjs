@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { materializeMissingRootPackages } from './materialize-profile-modules.mjs'
 import { DSH_VERSION, OFFICIAL_PNPM_VERSION } from './runtime-version.mjs'
 import { CATALOG_PACKAGES, ENTERPRISE_PACKAGES, PERSONAL_DEFAULT_EXTRA_BUNDLES, PRODUCT_PACKAGES, RELEASE_PACKAGES } from './workdsh-package-boundary.mjs'
-import { composeProfilePatches, verifyDefaultComposition, verifyDefaultProfile, verifyInstalledDshVersions, verifyOfficialWebPackages, verifyPackageDshReferences, verifyProfileRelease, verifyReleaseArchives } from './verify-profile-release.mjs'
+import { composeProfilePatches, verifyContextComposition, verifyDefaultComposition, verifyDefaultProfile, verifyInstalledDshVersions, verifyOfficialWebPackages, verifyPackageDshReferences, verifyProfileRelease, verifyReleaseArchives } from './verify-profile-release.mjs'
 import { runtimeArchitecture, runtimeArchitectureYaml } from './runtime-architecture.mjs'
 import { patchAccountMenuAt } from '../../../scripts/praxis/patch-account-menu.mjs'
 import { patchSignInWaitingAt } from '../../../scripts/praxis/patch-signin-waiting.mjs'
@@ -26,6 +26,8 @@ import { patchDshMailZhAt } from '../../../scripts/praxis/patch-dsh-mail-zh.mjs'
 import { patchSettingsNavIconsAt } from '../../../scripts/praxis/patch-settings-nav-icons.mjs'
 const architecture = runtimeArchitecture()
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const contextDefaultsFile = 'praxis-default-context.patch.yml'
+const contextDefaults = readFileSync(join(desktopRoot, 'scripts', contextDefaultsFile), 'utf8')
 const output = join(desktopRoot, 'build/workdsh-runtime')
 const profile = join(output, 'profiles/kaiwu')
 const legacyProfile = join(output, 'profiles/workdsh')
@@ -40,7 +42,7 @@ verifyReleaseArchives(manifest, release)
 // layout v12: hoisted Profile node_modules. Windows NSIS often materializes pnpm
 // junctions as plain folders, so nested .pnpm siblings like js-yaml/cosmokit/
 // resolve.exports/commander disappear unless packages are reachable from the Profile root.
-const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v16', architecture, release: manifest, catalog: CATALOG_PACKAGES })
+const marker = JSON.stringify({ harness: DSH_VERSION, pnpm: OFFICIAL_PNPM_VERSION, layout: 'workbench-platform-external-enterprise-v16', architecture, release: manifest, catalog: CATALOG_PACKAGES, contextDefaults })
 const PROFILE_ROOT_JS_YAML = '4.3.2'
 const PROFILE_ROOT_COSMOKIT = '1.8.6'
 // dsh-app-boot imports resolve.exports; first-run `plugin install` fails on Windows
@@ -135,10 +137,13 @@ function verifyInstalled() {
   const lock = readFileSync(join(profile, 'pnpm-lock.yaml'), 'utf8')
   if (/file:(?:\/|[a-z]:)/iu.test(lock)) throw new Error('Runtime lock contains a build-machine path')
   const cli = join(profile, 'node_modules/@deepseek-ai/dsh/lib/bin.js')
-  const config = spawnSync(process.execPath, [cli, '--profile', 'kaiwu', '--dump-config'], { env: { ...process.env, DSH_HOME: output }, encoding: 'utf8', timeout: 120_000, maxBuffer: 8 * 1024 * 1024 })
+  const defaultsPath = join(profile, contextDefaultsFile)
+  if (readFileSync(defaultsPath, 'utf8') !== contextDefaults) throw new Error('Packaged context defaults differ from source')
+  const config = spawnSync(process.execPath, [cli, '--profile', 'kaiwu', '--patch', defaultsPath, '--dump-config'], { env: { ...process.env, DSH_HOME: output }, encoding: 'utf8', timeout: 120_000, maxBuffer: 8 * 1024 * 1024 })
   if (config.error || config.status !== 0) throw new Error('Official runtime composition failed: ' + (config.error ?? config.stderr))
   verifyOfficialWebPackages(manifest, profile, config.stdout)
   verifyDefaultComposition(config.stdout)
+  verifyContextComposition(config.stdout, contextDefaults)
   for (const id of ['skillhub', 'dsh-market', 'playwright-browser', 'dsh-asr-voice', 'web-search-free', 'mnemon']) {
     if (!config.stdout.includes('id: ' + id)) throw new Error('Missing community catalog integration: ' + id)
   }
@@ -225,8 +230,13 @@ if (!prepared) {
     // graph, so CLI, Config Editor and Agent providers share module instances.
     for (let pass = 0; pass < 9; pass++) {
       const missing = new Map()
-      for (const entry of readdirSync(join(profile, 'node_modules/@deepseek-ai'))) {
-        const pkg = readJson(join(profile, 'node_modules/@deepseek-ai', entry, 'package.json'))
+      const scopeDir = join(profile, 'node_modules/@deepseek-ai')
+      if (!existsSync(scopeDir)) throw new Error('Profile install is missing node_modules/@deepseek-ai after pnpm install')
+      for (const entry of readdirSync(scopeDir)) {
+        const pkgPath = join(scopeDir, entry, 'package.json')
+        // Hoisted installs can leave transient non-package entries; only inspect real manifests.
+        if (!existsSync(pkgPath)) continue
+        const pkg = readJson(pkgPath)
         for (const [name, range] of Object.entries(pkg.peerDependencies ?? {})) {
           if (!name.startsWith('@deepseek-ai/') || pkg.peerDependenciesMeta?.[name]?.optional) continue
           const version = manifest.runtimeOverrides?.[name] ?? (name.startsWith('@deepseek-ai/dsh') ? DSH_VERSION : range)
@@ -271,6 +281,7 @@ if (!prepared) {
     patches.push(readFileSync(join(desktopRoot, 'scripts/praxis-default-preset.patch.yml'), 'utf8').trim())
     writeFileSync(join(profile, 'cordis.yml'), '[]\n')
     writeFileSync(join(profile, 'cordis.patch.yml'), composeProfilePatches(patches))
+    writeFileSync(join(profile, contextDefaultsFile), contextDefaults)
     verifyInstalled()
     // Root junctions survive NSIS. Packages that exist only as .pnpm siblings do not.
     materializeMissingRootPackages(join(profile, 'node_modules'))

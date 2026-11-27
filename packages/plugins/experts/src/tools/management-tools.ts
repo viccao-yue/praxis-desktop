@@ -3,7 +3,8 @@ import { dirname } from 'node:path';
 import { assetBytes, packagePath, type PackageAssets } from '../authoring/package-resources.js';
 import { buildExport } from '../services/portability.js';
 import type { Context } from '@deepseek-ai/cordis';
-import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools';
+import { ToolCallId } from '@deepseek-ai/dsh-llm';
+import { defineTool, type ToolExecutionResult, type ToolRunContext } from '@deepseek-ai/dsh-tools';
 import type { ActorContext, DomainIssue, ExpertDefinition, ExpertDetail, ExpertListQuery } from 'workdsh-contracts';
 import type { ExpertsManager } from '../services/experts-manager.js';
 import { expertDraftUrl } from '../domain/navigation.js';
@@ -268,10 +269,22 @@ function renderResult(summary: string, value: unknown, draftUrl?: string) {
 }
 
 function shellQuote(value: string): string { return "'" + value.replaceAll("'", "'\\''") + "'"; }
-async function nativeTool(ctx: Context, exec: ToolRunContext, name: string, args: object, suffix: string) {
-  const result = await ctx.tools.execute({ name, arguments: args, agent: exec.agent, signal: exec.signal, parent: exec.token, rootCallId: exec.rootCallId, callId: `${exec.callId}-${suffix}` as ToolRunContext['callId'] });
+/** DSH 0.2.2+ tools.execute is batch-only; adapt one nested native call. */
+async function nativeTool(ctx: Context, exec: ToolRunContext, name: string, args: object, suffix: string): Promise<ToolExecutionResult> {
+  const batch = await ctx.tools.execute({
+    calls: [{
+      type: 'tool-call',
+      id: ToolCallId(`${exec.callId}-${suffix}`),
+      name,
+      arguments: JSON.stringify(args),
+    }],
+    agent: exec.agent,
+    signal: exec.signal,
+  });
+  const result = batch.results[0]?.result;
+  if (!result) throw new ExpertsError('experts/unavailable', `原生工具${name}未返回结果。`);
   if (result.isError) throw new ExpertsError('experts/forbidden', `原生工具${name}拒绝操作：${result.error.message}`);
-  for (const context of result.additionalContexts ?? []) exec.deferContext(context);
+  for (const context of [...batch.additionalContexts, ...(result.additionalContexts ?? [])]) exec.deferContext(context);
   return result;
 }
 async function workspaceTarget(ctx: Context, exec: ToolRunContext, path: string) {

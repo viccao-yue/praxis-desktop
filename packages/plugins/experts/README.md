@@ -19,9 +19,9 @@
 
 | 插件 | 职责 |
 | --- | --- |
-| `@deepseek-ai/dsh-experimental-agent-team` | 成员、消息、共享任务、持久化恢复 |
-| `@deepseek-ai/dsh-experimental-tool-agent-team` | 官方九项团队工具 |
-| `@deepseek-ai/dsh-experimental-client-ui-agent-team` | 官方成员与共享任务面板 |
+| `@deepseek-ai/dsh-agent-team` | 成员、消息、共享任务、持久化恢复 |
+| `@deepseek-ai/dsh-tool-agent-team` | 官方九项团队工具 |
+| `@deepseek-ai/dsh-client-ui-agent-team` | 官方成员与共享任务面板 |
 
 启用 Team 时，按官方 Profile 组合停用旧 `subagent`、`subagent_fork` 及旧控制工具。默认成员创建上限为 16。九项工具为 `spawn_teammate`、`send_message`、`list_agents`、`wait_agent`、`interrupt_agent`、`team_task_create`、`team_task_list`、`team_task_get`、`team_task_update`。
 

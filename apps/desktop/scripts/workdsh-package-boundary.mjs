@@ -39,12 +39,12 @@ export const CATALOG_PACKAGES = Object.freeze({
   'dsh-mineru': '0.1.15',
   // Skill command /drawai-canvas. https://www.npmjs.com/package/dsh-drawai
   'dsh-drawai': '0.3.4',
-  // 0.8+ requires DSH >=0.2.1-rc.3. This runtime is 0.2.1-rc.2.
+  // 0.8+ requires DSH >=0.2.1-rc.3. This runtime is 0.2.2-rc.5.
   'dsh-remotion': '0.7.0',
   // https://www.npmjs.com/package/dsh-comfyui
   'dsh-comfyui': '0.5.5',
   // Native browser_* tools for personal and enterprise Profiles.
-  // https://www.npmjs.com/package/dsh-playwright-browser — verified on DSH 0.2.1-rc.2
+  // https://www.npmjs.com/package/dsh-playwright-browser — verified on DSH 0.2.2-rc.5
   'dsh-playwright-browser': '0.1.3',
   // Praxis: conversation mic → 语音输入（浏览器 Web Speech / 云端 ASR）。
   // https://www.npmjs.com/package/@bittersmilezzz/dsh-asr-voice
@@ -53,6 +53,8 @@ export const CATALOG_PACKAGES = Object.freeze({
   // Praxis: free web search tools (personal + enterprise same Profile).
   // https://www.npmjs.com/package/dsh-free-search — engines.dsh >=0.1.7-rc.1
   'dsh-free-search': '0.9.31',
+  // Context dashboard and /context for both Desktop spaces.
+  'dsh-context': '0.85.1',
   // Do NOT default-install dsh-email (settings paper-plane 邮件). Keep
   // @lucagiftzek/dsh-mail as an explicit user install (settings gear 邮件).
 })

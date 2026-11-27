@@ -24,12 +24,13 @@ export function isOfficialReleaseCacheValid(destination, target) {
     const runtime = join(destination, 'runtime/primary-runtime')
     const [platform] = target.split('-')
     verifyOfficialRuntimeProvenance(runtime,target)
+    // DSH 0.2.2+ ships Office skill markdown inside @deepseek-ai/dsh-skill-office;
+    // official Desktop archives no longer carry a separate runtime/office-skills tree.
     return [
       join(runtime, 'dependencies/python', platform === 'mac' ? 'bin/python3' : 'python.exe'),
       join(runtime, 'dependencies/node/bin', platform === 'mac' ? 'node' : 'node.exe'),
       join(runtime, 'dependencies/pnpm/bin/pnpm.cjs'),
       join(destination, 'runtime/cli/command-manager.js'),
-      join(destination, 'runtime/office-skills'),
     ].every(existsSync)
   } catch { return false }
 }
@@ -84,9 +85,12 @@ export async function prepareOfficialRelease(desktopRoot, target) {
     if (!resources) throw new Error('Official release has no reusable runtime resources')
     const metadata = JSON.parse(readFileSync(join(resources, 'runtime/primary-runtime/runtime.json'), 'utf8'))
     assertOfficialPrimaryRuntime(metadata,target)
-    if (!existsSync(join(resources, 'runtime/cli/command-manager.js')) || !existsSync(join(resources, 'runtime/office-skills'))) throw new Error('Official release is missing command/Office resources')
+    if (!existsSync(join(resources, 'runtime/cli/command-manager.js'))) throw new Error('Official release is missing command resources')
     rmSync(destination, { recursive: true, force: true }); mkdirSync(destination)
-    for (const name of ['primary-runtime', 'office-skills', 'cli']) copyOfficialRuntime(join(resources, 'runtime', name), join(destination, 'runtime', name))
+    for (const name of ['primary-runtime', 'cli']) copyOfficialRuntime(join(resources, 'runtime', name), join(destination, 'runtime', name))
+    if (existsSync(join(resources, 'runtime/office-skills'))) {
+      copyOfficialRuntime(join(resources, 'runtime/office-skills'), join(destination, 'runtime/office-skills'))
+    }
     writeOfficialRuntimeProvenance(join(destination,'runtime/primary-runtime'),target)
     writeFileSync(receipt, identity)
     if (!isOfficialReleaseCacheValid(destination, target)) throw new Error('Copied official runtime is incomplete or has broken executable links')

@@ -1,11 +1,22 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
-import type {} from '@deepseek-ai/dsh-experimental-agent-team';
+import type {} from '@deepseek-ai/dsh-subagent';
 import * as Persona from '@deepseek-ai/dsh-persona';
 import * as SkillFiles from '@deepseek-ai/dsh-skill-filesystem';
 import { expertPersonaConfig, expertPresetDir, readExpertPreset, resolveAgentsHome } from './preset-compiler.js';
 import { join } from 'node:path';
 import { ExpertsError } from '../domain/values.js';
+
+/** Resolve the live Team/subagent root. Unattached create/recovery races return the agent itself. */
+function resolveSubagentTree(ctx: Context, agent: Agent): { root: Agent; teammateName?: string; attached: boolean } {
+  try {
+    const root = ctx.subagents.rootOf(agent);
+    if (root === agent) return { root, attached: false };
+    return { root, teammateName: ctx.subagents.namesOf(agent).self, attached: true };
+  } catch {
+    return { root: agent, attached: false };
+  }
+}
 
 /** Asset admission and role composition only. No child driver, mailbox or Team state. */
 export function registerExpertExecutionGuard(ctx: Context, options: { agentsHome?: string } = {}): void {
@@ -13,27 +24,25 @@ export function registerExpertExecutionGuard(ctx: Context, options: { agentsHome
   const installed = new WeakMap<Agent, string>();
 
   async function prepare(agent: Agent, signal: AbortSignal | undefined, creating: boolean): Promise<void> {
-    const membership = ctx.agentTeams.tryMembership(agent);
-    const root = membership?.root ?? agent;
+    const { root, teammateName, attached } = resolveSubagentTree(ctx, agent);
     const header = agent.session.header;
     const actor = await ctx.workdshIdentity.resolve({ sessionId: String(root.id) }, signal);
     let role;
     try {
-      role = await ctx.workdshExperts.resolveNativeRole(actor, String(root.id), membership?.role === 'teammate' ? membership.name : undefined, signal);
+      role = await ctx.workdshExperts.resolveNativeRole(actor, String(root.id), teammateName, signal);
     } catch (error) {
       const unbound = error instanceof ExpertsError && error.code === 'experts/not-found' && error.details?.reason === 'unbound';
       // The trusted create endpoint stores a Lead asset binding after Agent creation.
       // Its first pre-step must still verify the binding before reaching the model.
-      // A resumed official Team child is announced before Team's own serial
-      // recovery listener may have restored its runtime membership. Defer only
-      // this creation edge; agent/pre-step below still requires the recovered
-      // root binding and rejects a genuinely unbound expert child.
-      if (unbound && creating && !membership && header.parentSession) return;
+      // A resumed official Team child is announced before subagent ownership may have
+      // been restored. Defer only this creation edge; agent/pre-step below still
+      // requires the recovered root binding and rejects a genuinely unbound expert child.
+      if (unbound && creating && !attached && header.parentSession) return;
       if (unbound && (!header.agentPreset?.startsWith('wd-exp-') || creating && root === agent && !header.parentSession)) return;
       throw error;
     }
     if (role.binding.presetRevisionRef !== header.agentPreset) throw new ExpertsError('experts/conflict', '原生任务 preset 与固定专家组合不一致。');
-    if (membership?.role === 'teammate') {
+    if (attached) {
       if (header.parentSession !== root.id || header.cwd !== root.session.header.cwd) throw new ExpertsError('experts/conflict', '官方成员与主任务的父关系或工作区不一致。');
       const childActor = await ctx.workdshIdentity.resolve({ sessionId: String(agent.id) }, signal);
       if (childActor.principalId !== actor.principalId || childActor.organizationId !== actor.organizationId) throw new ExpertsError('experts/forbidden', '成员和主任务不属于同一授权主体。');

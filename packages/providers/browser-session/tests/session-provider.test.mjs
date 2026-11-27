@@ -1,3 +1,4 @@
+import { executeOneTool } from '../../../test-support/execute-one-tool.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -43,7 +44,7 @@ test('official Agent Sessions receive isolated managed Playwright tools', {
     }
     assert.equal(ctx.workdshBrowserSession.active(first.agent), false);
 
-    const close = agent => ctx.tools.execute({
+    const close = agent => executeOneTool(ctx.tools, {
       agent,
       name: 'mcp__workdsh-playwright__browser_close',
       arguments: {},
@@ -55,20 +56,20 @@ test('official Agent Sessions receive isolated managed Playwright tools', {
       assert.equal(result.isError, false, JSON.stringify(result));
       assert.equal(ctx.workdshBrowserSession.active(first.agent), false, 'closing an untouched browser never activates its blank view');
     }
-    const tabs = (agent, action, extra = {}) => ctx.tools.execute({
+    const tabs = (agent, action, extra = {}) => executeOneTool(ctx.tools, {
       agent, name: 'mcp__workdsh-playwright__browser_tabs', arguments: { action, ...extra },
       callId: `tabs-${randomUUID()}`, signal: new AbortController().signal,
     });
     assert.equal((await tabs(first.agent, 'list')).isError, false);
     assert.equal(ctx.workdshBrowserSession.active(first.agent), false, 'listing browser tabs is not page use');
-    const failedNavigation = await ctx.tools.execute({
+    const failedNavigation = await executeOneTool(ctx.tools, {
       agent: first.agent, name: TOOL, arguments: { url: 42 },
       callId: 'invalid-navigation', signal: new AbortController().signal,
     });
     assert.equal(failedNavigation.isError, true);
     assert.equal(ctx.workdshBrowserSession.active(first.agent), false, 'failed tools do not announce browser activity');
 
-    const execute = (agent, label) => ctx.tools.execute({
+    const execute = (agent, label) => executeOneTool(ctx.tools, {
       agent,
       name: TOOL,
       arguments: { url: `data:text/html,<title>${label}</title><button onclick="this.textContent='CLICKED_${label}'">${label}</button>` },
@@ -106,7 +107,7 @@ test('official Agent Sessions receive isolated managed Playwright tools', {
     const clicked = await callRoute(first.agent.id, 'click', { x: 62, y: 17 });
     assert.equal(clicked.status, 200);
     assert.match(clicked.body.url, /FIRST_SESSION/);
-    const observed = await ctx.tools.execute({
+    const observed = await executeOneTool(ctx.tools, {
       agent: first.agent,
       name: 'mcp__workdsh-playwright__browser_snapshot',
       arguments: {},

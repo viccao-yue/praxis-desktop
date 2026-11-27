@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { load, dump } from 'js-yaml'
+import { DEFAULT_SCHEMA, Type, load, dump } from 'js-yaml'
 import { syncBundledCompatibility } from './runtime-compatibility.ts'
 import { cachedPackageManager } from './plugin-archive-cache.ts'
 import { enterpriseNamespace } from './connection-mode.ts'
@@ -105,6 +105,36 @@ const PERSONAL_SIDEBAR_DEFAULTS = `- id: better-sidebar
       diff: false
 `
 
+const CONTEXT_PACKAGE = 'dsh-context'
+const CONTEXT_DEFAULTS = 'praxis-default-context.patch.yml'
+// The official Profile accepts !!js expressions. Preserve the tag without evaluating it.
+// Avoid TypeScript parameter properties: packaged Host checks run this file under
+// the bundled Node strip-only loader, which rejects that syntax.
+class ProfileExpression {
+  source: string
+  constructor(source: string) {
+    this.source = source
+  }
+}
+const PROFILE_PATCH_SCHEMA = DEFAULT_SCHEMA.extend(new Type('tag:yaml.org,2002:js', {
+  kind: 'scalar', construct: value => new ProfileExpression(value),
+  instanceOf: ProfileExpression, represent: (value: ProfileExpression) => value.source,
+}))
+function seedContextDefaults(source: string, profile: string): void {
+  const filename = join(profile, 'cordis.patch.yml')
+  const readPatches = (path: string): { id?: string, config?: unknown, insert?: { id?: string, config?: unknown }[] }[] => {
+    const parsed = existsSync(path) ? load(readFileSync(path, 'utf8'), { schema: PROFILE_PATCH_SCHEMA }) ?? [] : []
+    if (!Array.isArray(parsed)) throw new Error('Profile 补丁必须是 YAML 列表')
+    return parsed
+  }
+  const patches = readPatches(filename)
+  if (patches.some(row => row?.id === CONTEXT_PACKAGE && row.config !== undefined
+    || Array.isArray(row?.insert) && row.insert.some(entry => entry?.id === CONTEXT_PACKAGE && entry.config !== undefined))) return
+  const defaults = readPatches(join(source, CONTEXT_DEFAULTS))
+  if (defaults.length !== 1 || defaults[0]?.id !== CONTEXT_PACKAGE || !defaults[0].config) throw new Error('安装包缺少上下文插件默认配置')
+  writeFileSync(filename, dump([...patches, ...defaults], { schema: PROFILE_PATCH_SCHEMA }), { mode: 0o600 })
+}
+
 /** Product catalog memory plugin: living-memory → mnemon (personal and enterprise Homes). */
 const LIVING_MEMORY_PACKAGE = 'dsh-living-memory'
 const MNEMON_PACKAGE = 'dsh-mnemon'
@@ -181,6 +211,7 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
   if (typeof version !== 'string') throw new Error('Bundled DSH version is missing')
   const state = join(target, BASE_STATE)
   const manifest = join(target, 'package.json')
+  const fresh = !existsSync(manifest)
   const modules = join(target, 'node_modules')
   mkdirSync(target, { recursive: true, mode: 0o700 })
   // A previous shared symlink is not safe for plugin writes. Refuse to mutate it.
@@ -188,7 +219,7 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
   const digest = baseDigest(source, release, version)
   const previous = existsSync(state) ? JSON.parse(readFileSync(state, 'utf8')) as { digest: string, base: ProfilePackage, pendingInstallation?: boolean } : undefined
   let changed = previous?.pendingInstallation === true
-  if (!existsSync(manifest)) {
+  if (fresh) {
     writeJson(manifest, base)
     writeFileSync(join(target, 'cordis.patch.yml'), PERSONAL_SIDEBAR_DEFAULTS, { mode: 0o600 })
     // Bundled optional media (e.g. 企业连接) is carried into member dependencies and must install.
@@ -238,6 +269,10 @@ export function materializeRuntimeProfile(source: string, home: string): { profi
         || (memoryMigrated && (hadLivingDependency || hadLivingModule))
     }
   }
+  // Seed the writable user layer once, so plugin settings continue to take effect.
+  // A launch overlay would outrank later changes made through the plugin UI.
+  if ((fresh || !previous?.base.dsh?.profile?.bundles?.includes(CONTEXT_PACKAGE))
+    && base.dsh?.profile?.bundles?.includes(CONTEXT_PACKAGE)) seedContextDefaults(source, target)
   const policyChanged = updatePackagePolicy(source, target)
   if (policyChanged && existsSync(modules)) changed = true
   const cache = join(home, 'package-cache')

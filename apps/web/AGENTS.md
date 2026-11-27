@@ -1,10 +1,10 @@
 # kaiwu Web repository rules
 
-This independent pnpm workspace owns kaiwu feature packages and Web composition inside the combined Desktop repository. Use Node.js `^22.19.0 || >=24.0.0` and Corepack `pnpm@10.34.5`. The Desktop carrier uses the root Yarn workspace; never merge the package-manager graphs.
+This independent pnpm workspace owns kaiwu feature packages and Web composition inside the combined Desktop repository. Use Node.js `>=24.9.0` and Corepack `pnpm@10.34.5`. The Desktop carrier uses the root Yarn workspace; never merge the package-manager graphs.
 
 ## Runtime and ownership
 
-- Pin official DSH dependencies and required peers to the product target `0.2.1-rc.2`, with Cordis `4.0.5`. Web consumes published official packages. Never require its checkout for a Web build. The explicit Web-preview and Desktop exception in root AGENTS.md permits only the shared checksum-locked rc.2 two-seam outer native workbench frame patch; other upstream edits remain prohibited.
+- Pin official DSH dependencies and required peers to the product target `0.2.2-rc.5`, with Cordis `4.1.0`. Web consumes published official packages. Never require its checkout for a Web build. The explicit Web-preview and Desktop exception in root AGENTS.md permits only the shared checksum-locked `0.2.2-rc.5` two-seam outer native workbench frame patch; other upstream edits remain prohibited.
 - Personal Web, enterprise Web and Desktop share official runtime targets, owned feature packages, business services and pages. Identity, storage, execution and synchronization vary only at explicit adapter boundaries.
 - Use official Loader/Profile/Cordis, Session/Agent loop, preset registry, Skill parser/provider, MCP transport, model routing, Remote, Storage and Conversation UI. Do not introduce another Host, Client, loader or executor.
 - Feature packages own business objects, revisions, authorization and presentation. Page actions and Agent tools use the same business services. Optional cross-plugin collaboration uses public contracts and lifecycle injection, never another plugin's internal implementation.

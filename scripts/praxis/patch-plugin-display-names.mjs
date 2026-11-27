@@ -2,6 +2,8 @@
 /**
  * Praxis: hide technical `workdsh-` prefixes in plugin manager UI (personal + enterprise).
  *
+ * Supports both pretty (0.2.1) and compact (0.2.2+) compiled bundles.
+ *
  * Usage:
  *   node scripts/praxis/patch-plugin-display-names.mjs <profile-or-package-root>
  *   node scripts/praxis/patch-plugin-display-names.mjs --self-test
@@ -26,14 +28,19 @@ const BROKEN_BLOCK = `\t\tfunction shortName(name) {
 \t\t\treturn typeof text === "string" ? text.replace(/workdsh-/g, "") : text;
 \t\t}\t\t}`
 
-const FIXED_BLOCK = `\t\tfunction shortName(name) {
+const FIXED_BLOCK_PRETTY = `\t\tfunction shortName(name) {
 \t\t\treturn (name.startsWith("@") ? name.slice(name.indexOf("/") + 1) : name).replace(/^dsh-(?:host-|client-)?/, "");
 \t\t}
 \t\tfunction praxisUiPluginLabel(text) {
 \t\t\treturn typeof text === "string" ? text.replace(/workdsh-/g, "") : text;
 \t\t}`
 
-const REPLACEMENTS = [
+const INSERT_NEEDLE_PRETTY = '\t\tfunction shortName(name) {\n\t\t\treturn (name.startsWith("@") ? name.slice(name.indexOf("/") + 1) : name).replace(/^dsh-(?:host-|client-)?/, "");\n\t\t}'
+
+const INSERT_NEEDLE_COMPACT = 'function shortName(name){return(name.startsWith(`@`)?name.slice(name.indexOf(`/`)+1):name).replace(/^dsh-(?:host-|client-)?/,``)}'
+const FIXED_BLOCK_COMPACT = `${INSERT_NEEDLE_COMPACT}function praxisUiPluginLabel(text){return typeof text===\`string\`?text.replace(/workdsh-/g,\`\`):text}`
+
+const REPLACEMENTS_PRETTY = [
   {
     from: 'title: pkg.meta?.title === void 0 ? pkg.name : resolveText(pkg.meta.title),',
     to: 'title: praxisUiPluginLabel(pkg.meta?.title === void 0 ? pkg.name : resolveText(pkg.meta.title)),',
@@ -56,27 +63,54 @@ const REPLACEMENTS = [
   },
 ]
 
+const REPLACEMENTS_COMPACT = [
+  {
+    from: 'title:pkg.meta?.title===void 0?pkg.name:resolveText(pkg.meta.title),',
+    to: 'title:praxisUiPluginLabel(pkg.meta?.title===void 0?pkg.name:resolveText(pkg.meta.title)),',
+  },
+  {
+    from: 'title:row.meta?.title===void 0?row.moduleName:resolveText(row.meta.title),',
+    to: 'title:praxisUiPluginLabel(row.meta?.title===void 0?row.moduleName:resolveText(row.meta.title)),',
+  },
+  {
+    from: 'children:row.moduleName',
+    to: 'children:praxisUiPluginLabel(row.moduleName)',
+  },
+  {
+    from: 'children:(0,react_jsx_runtime.jsx)(`code`,{children:row.moduleName})',
+    to: 'children:(0,react_jsx_runtime.jsx)(`code`,{children:praxisUiPluginLabel(row.moduleName)})',
+  },
+  {
+    from: 'children:pkg.name',
+    to: 'children:praxisUiPluginLabel(pkg.name)',
+  },
+]
+
 export function patchPluginDisplayNamesSource(source) {
   let next = source.includes(MARKER) ? source : MARKER + '\n' + source
   if (next.includes(BROKEN_BLOCK)) {
-    next = next.replace(BROKEN_BLOCK, FIXED_BLOCK)
+    next = next.replace(BROKEN_BLOCK, FIXED_BLOCK_PRETTY)
     return { source: next, changed: true, already: false, steps: ['repair-shortName-scope'] }
   }
-  if (next.includes(FIXED_BLOCK) && REPLACEMENTS.every(({ from, to }) => next.includes(to) || !next.includes(from))) {
+  const compact = next.includes(INSERT_NEEDLE_COMPACT) || next.includes('function shortName(name){return(name.startsWith(`@`)')
+  const fixed = compact ? FIXED_BLOCK_COMPACT : FIXED_BLOCK_PRETTY
+  const insertNeedle = compact ? INSERT_NEEDLE_COMPACT : INSERT_NEEDLE_PRETTY
+  const replacements = compact ? REPLACEMENTS_COMPACT : REPLACEMENTS_PRETTY
+
+  if (next.includes(fixed) && replacements.every(({ from, to }) => next.includes(to) || !next.includes(from))) {
     return { source: next, changed: false, already: true }
   }
-  const insertNeedle = '\t\tfunction shortName(name) {\n\t\t\treturn (name.startsWith("@") ? name.slice(name.indexOf("/") + 1) : name).replace(/^dsh-(?:host-|client-)?/, "");\n\t\t}'
   if (!next.includes('function praxisUiPluginLabel(')) {
     if (!next.includes(insertNeedle)) throw new Error('Plugin display patch: shortName() block missing')
-    next = next.replace(insertNeedle, FIXED_BLOCK)
+    next = next.replace(insertNeedle, fixed)
   }
   const steps = []
-  for (const { from, to } of REPLACEMENTS) {
+  for (const { from, to } of replacements) {
     if (!next.includes(from)) {
       if (next.includes(to)) continue
       throw new Error('Plugin display patch: pattern missing: ' + from.slice(0, 60))
     }
-    next = next.replace(from, to)
+    next = next.replaceAll(from, to)
     steps.push(from.slice(0, 24))
   }
   return { source: next, changed: true, already: false, steps }
@@ -114,6 +148,25 @@ function selfTest() {
   if (praxisUiPluginLabel('workdsh-enterprise-connection') !== 'enterprise-connection') {
     throw new Error('self-test: strip failed')
   }
+  const pretty = `${INSERT_NEEDLE_PRETTY}
+\t\tfunction packageText(pkg, resolveText) {
+\t\t\treturn {
+\t\t\t\ttitle: pkg.meta?.title === void 0 ? pkg.name : resolveText(pkg.meta.title),
+\t\t\t};
+\t\t}
+\t\tfunction rowText(row, resolveText) {
+\t\t\treturn {
+\t\t\t\ttitle: row.meta?.title === void 0 ? row.moduleName : resolveText(row.meta.title),
+\t\t\t};
+\t\t}
+\t\tchildren: row.moduleName
+\t\tchildren: (0, react_jsx_runtime.jsx)("code", { children: row.moduleName })
+\t\tchildren: pkg.name`
+  const once = patchPluginDisplayNamesSource(pretty)
+  if (!once.changed || !once.source.includes('praxisUiPluginLabel(pkg.name)')) throw new Error('self-test pretty failed')
+  const compact = `${INSERT_NEEDLE_COMPACT}function packageText(pkg,resolveText){return{title:pkg.meta?.title===void 0?pkg.name:resolveText(pkg.meta.title),description:void 0}}function rowText(row,resolveText){return{title:row.meta?.title===void 0?row.moduleName:resolveText(row.meta.title),description:void 0}}const x={children:row.moduleName};const y={children:(0,react_jsx_runtime.jsx)(\`code\`,{children:row.moduleName})};const z={"data-plugin-name":true,children:pkg.name}`
+  const compactOnce = patchPluginDisplayNamesSource(compact)
+  if (!compactOnce.changed || !compactOnce.source.includes('praxisUiPluginLabel(pkg.name)')) throw new Error('self-test compact failed')
   console.log('patch-plugin-display-names self-test ok')
 }
 

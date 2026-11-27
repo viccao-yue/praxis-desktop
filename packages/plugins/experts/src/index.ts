@@ -32,7 +32,7 @@ export const name = 'workdsh-plugin-experts';
 export const inject = [
   'loader', 'storageDomain', 'agentPresets', 'sessionController',
   'workdshIdentity', 'workdshAccess', 'workdshAudit', 'workdshSessionAccess', 'workdshSkills',
-  'connection', 'tools', 'skills', 'agents', 'agentTeams', 'sessionQuery', 'fs',
+  'connection', 'tools', 'skills', 'agents', 'agentTeams', 'subagents', 'sessionQuery', 'fs',
 ];
 
 /**

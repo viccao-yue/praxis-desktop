@@ -1,11 +1,31 @@
 import {pdfBytes} from "../pdf/encode.js";
 import {spreadsheetXlsx} from "../spreadsheet/xlsx.js";
 import type { Context } from "@deepseek-ai/cordis";
-import type { ToolRunContext } from "@deepseek-ai/dsh-tools";
+import { ToolCallId } from "@deepseek-ai/dsh-llm";
+import type { ToolExecutionResult, ToolRunContext } from "@deepseek-ai/dsh-tools";
 import type { OfficeContentSnapshot } from "workdsh-contracts/office";
 import { documentDocx } from "../live/docx.js";
 import { parsePresentation } from "../presentation/native-deck.js";
 import { createHash } from "node:crypto";
+
+async function executeOneTool(
+  ctx: Context,
+  exec: ToolRunContext,
+  name: string,
+  args: object,
+  callId: string,
+): Promise<ToolExecutionResult> {
+  const batch = await ctx.tools.execute({
+    calls: [{ type: "tool-call", id: ToolCallId(callId), name, arguments: JSON.stringify(args) }],
+    agent: exec.agent,
+    signal: exec.signal,
+  });
+  const result = batch.results[0]?.result;
+  if (!result) throw new Error(`原生工具 ${name} 未返回结果。`);
+  for (const context of [...batch.additionalContexts, ...(result.additionalContexts ?? [])]) exec.deferContext(context);
+  return result;
+}
+
 /** Binary writes travel through the official bash policy pipeline, never bare Host fs. */
 export async function exportAndPresent(
   ctx: Context,
@@ -68,38 +88,26 @@ export async function exportAndPresent(
   for(const [index,command] of commands.entries()) {
     exec.signal.throwIfAborted();
     let write;
-    try { write = await ctx.tools.execute({
-      name:"bash",arguments:{command,description:`Export current document as ${format}${commands.length>1?` (${index+1}/${commands.length})`:""}`,timeoutMs:30000},
-      callId:`${exec.callId}:office-write${index?`-${index}`:""}` as typeof exec.callId,
-      rootCallId:exec.rootCallId,parent:exec.token,agent:exec.agent,signal:exec.signal,
-    }); } catch {
+    try {
+      write = await executeOneTool(ctx, exec, "bash", {
+        command,
+        description: `Export current document as ${format}${commands.length > 1 ? ` (${index + 1}/${commands.length})` : ""}`,
+        timeoutMs: 30000,
+      }, `${exec.callId}:office-write${index ? `-${index}` : ""}`);
+    } catch {
       throw new Error(`${format} 写入结果未知：${path}。未交付文件；重试 content_export 时使用同一 documentId 和 baseRevision ${snapshot.revision}，先核对已有文件，不覆盖原件。`);
     }
-    for(const context of write.additionalContexts??[])exec.deferContext(context);
     if(write.isError||!write.content.some(b=>b.type==="text"&&b.text.includes(marker)))throw new Error(`${format} 文件写入失败、被策略拒绝或结果未知，未交付文件。目标 ${path}；可使用同一修订 ${snapshot.revision} 重试导出并核对已有文件，或使用右侧下载。`);
   }
   exec.signal.throwIfAborted();
   let present;
-  try { present = await ctx.tools.execute({
-    name: "present",
-    arguments: {
-      files: [
-        {
-          path,
-          description: `${snapshot.title} · ${format} · 修订 ${snapshot.revision}`,
-        },
-      ],
-    },
-    callId: `${exec.callId}:office-present` as typeof exec.callId,
-    rootCallId: exec.rootCallId,
-    parent: exec.token,
-    agent: exec.agent,
-    signal: exec.signal,
-  }); } catch {
+  try {
+    present = await executeOneTool(ctx, exec, "present", {
+      files: [{ path, description: `${snapshot.title} · ${format} · 修订 ${snapshot.revision}` }],
+    }, `${exec.callId}:office-present`);
+  } catch {
     throw new Error(`${format} 已导出到 ${path}，但原生交付结果未知，请核对卡片后对该路径重试 present。`);
   }
-  for (const context of present.additionalContexts ?? [])
-    exec.deferContext(context);
   if (present.isError)
     throw new Error(
       `${format} 已导出到 ${path}，但原生交付失败，请对该路径重试 present。`,

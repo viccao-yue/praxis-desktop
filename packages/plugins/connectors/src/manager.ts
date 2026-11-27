@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Context, Service } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import { credentialRef } from '@deepseek-ai/dsh-credentials';
+import { ToolCallId } from '@deepseek-ai/dsh-llm';
 import * as McpClient from '@deepseek-ai/dsh-mcp-client';
 import type { KvTable } from '@deepseek-ai/dsh-storage-domain';
 import type { ConnectorConfigView, ConnectorInput, ConnectorManagementService, ConnectorState, ConnectorSummary } from './shared.js';
@@ -248,8 +249,15 @@ export class ConnectorManager extends Service implements ConnectorManagementServ
         return { state: 'ready', toolNames, resourceCount: 0, resourceTemplateCount: 0, diagnostic: runtime.diagnostic };
       }
       const call = async (name: string, args: JsonRecord) => {
-        const output = await this.ctx.tools.execute({ name, arguments: args, callId: randomUUID() as never, agent, signal: signal ?? new AbortController().signal });
-        if (output.isError) throw output.error; return record(output.value) ?? {};
+        const batch = await this.ctx.tools.execute({
+          calls: [{ type: 'tool-call', id: ToolCallId(randomUUID()), name, arguments: JSON.stringify(args) }],
+          agent,
+          signal: signal ?? new AbortController().signal,
+        });
+        const output = batch.results[0]?.result;
+        if (!output) throw new Error(`原生工具 ${name} 未返回结果。`);
+        if (output.isError) throw output.error;
+        return record(output.value) ?? {};
       };
       // Resources are optional MCP capabilities. A server with working tools must not
       // be reported offline only because it does not expose resource endpoints.

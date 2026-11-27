@@ -3,7 +3,19 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 const root=new URL('../../../packages/plugins/workbenches/',import.meta.url);
 const manifest=JSON.parse(await readFile(new URL('package.json',root),'utf8'));
-await build({entryPoints:[fileURLToPath(new URL('dist/index.js',root))],outfile:fileURLToPath(new URL('dist/index.js',root)),allowOverwrite:true,bundle:true,platform:'node',format:'esm',external:Object.keys({...manifest.dependencies,...manifest.peerDependencies})});
+// Bundled CJS deps (e.g. mime-types) still call require("path"). Under ESM the
+// esbuild __require shim needs a real createRequire; Node 24 Host smoke fails
+// otherwise with "Dynamic require of path is not supported".
+await build({
+  entryPoints:[fileURLToPath(new URL('dist/index.js',root))],
+  outfile:fileURLToPath(new URL('dist/index.js',root)),
+  allowOverwrite:true,
+  bundle:true,
+  platform:'node',
+  format:'esm',
+  banner:{js:"import { createRequire as __workbenchesCreateRequire } from 'node:module';const require=__workbenchesCreateRequire(import.meta.url);"},
+  external:Object.keys({...manifest.dependencies,...manifest.peerDependencies}),
+});
 
 // Ship generated owned contract declarations with the SDK; external consumers
 // must not resolve an unpublished workspace package to understand its types.

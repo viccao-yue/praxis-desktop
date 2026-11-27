@@ -12,8 +12,14 @@ const probe=`import hashlib,json,platform,sys;print(json.dumps({'platform':sys.p
 
 async function dispatch(ctx,exec,name,args,suffix){
  exec.signal.throwIfAborted();
- const result=await ctx.tools.execute({name,arguments:args,callId:`${exec.callId}:compute:${suffix}`,rootCallId:exec.rootCallId,parent:exec.token,agent:exec.agent,signal:exec.signal});
- for(const context of result.additionalContexts??[])exec.deferContext(context);
+ const batch=await ctx.tools.execute({
+  calls:[{type:'tool-call',id:`${exec.callId}:compute:${suffix}`,name,arguments:JSON.stringify(args??{})}],
+  agent:exec.agent,
+  signal:exec.signal,
+ });
+ const result=batch.results?.[0]?.result;
+ if(!result)throw Error('HOST_COMPUTE_DISPATCH_FAILED');
+ for(const context of [...(batch.additionalContexts??[]),...(result.additionalContexts??[])])exec.deferContext(context);
  if(result.isError)throw Error('HOST_COMPUTE_DISPATCH_FAILED');
  exec.signal.throwIfAborted();return result.value;
 }

@@ -8,7 +8,12 @@ import { DesktopBodySync, observeDesktopSessions } from './desktop-body-sync.js'
 export type { EnterpriseDesktopConfig } from './desktop-authority.js';
 
 declare module '@deepseek-ai/cordis' { interface Context { workdshIdentity: IdentityService; workdshEnterprise: EnterpriseService } }
-type SessionAccess = { inspect: Context['sessionController']['inspect'] };
+type SessionAccess = {
+  inspect: (
+    sessionId: Parameters<Context['sessionController']['resolveAgent']>[0],
+    signal?: AbortSignal,
+  ) => Promise<{ events: readonly import('@deepseek-ai/dsh-session').SessionEvent[]; meta?: { cwd?: string } }>
+};
 
 /** Explicit enterprise Desktop composition. It cannot authenticate as a personal identity. */
 export default class EnterpriseDesktopIdentity extends Service implements IdentityService {
