@@ -1732,6 +1732,8 @@ importers:
         specifier: 5.5.2
         version: 5.5.2
 
+  ../../packages/test-support: {}
+
   ../../packages/ui:
     devDependencies:
       '@deepseek-ai/dsh-client-ui-primitives':
