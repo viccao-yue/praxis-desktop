@@ -1,7 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis';
-import type {} from '@deepseek-ai/dsh-api-session-controller';
 import type { ActorContext, IdentityService, RuntimeBindingService } from 'workdsh-contracts';
+import type { SessionId } from '@deepseek-ai/dsh-session';
 import { createWorkbenchDevelopmentSessionVerifier } from './development-session.js';
+import { readSessionCold } from './session-cold-inspect.js';
 
 /** Native Host adaptation. Session creation/access binding is owned by the
  * existing platform; this adapter cannot adopt someone else's or unowned Session. */
@@ -9,7 +10,7 @@ export function createNativeWorkbenchDevelopmentSessionVerifier(ctx: Context, se
   const identity = ctx.get('workdshIdentity') as IdentityService | undefined;
   const access = ctx.get('workdshAccess') as RuntimeBindingService | undefined;
   const native = ctx.get('sessionController') as Context['sessionController'] | undefined;
-  const protectedSessions = ctx.get('workdshSessionAccess') as Pick<Context['sessionController'], 'inspect'> | undefined;
+  const protectedSessions = ctx.get('workdshSessionAccess') as Parameters<typeof readSessionCold>[1];
   if (!identity || !access || !native) throw new Error('workbench/session-authority-unavailable');
   const authorize = async (actor: ActorContext, id: string, signal?: AbortSignal) => {
     signal?.throwIfAborted();
@@ -23,9 +24,8 @@ export function createNativeWorkbenchDevelopmentSessionVerifier(ctx: Context, se
       !owner || owner.ownerPrincipalId !== actor.principalId || owner.organizationId !== actor.organizationId ||
       (profile.organization.kind !== 'personal' && !protectedSessions)) throw new Error('workbench/development-access-denied');
   };
-  const inspector = protectedSessions ?? native;
   return createWorkbenchDevelopmentSessionVerifier(sessionId, {
     authorize,
-    inspect: (id, signal) => inspector.inspect(id as Parameters<typeof native.inspect>[0], signal),
+    inspect: (id, signal) => readSessionCold(native, protectedSessions, id as SessionId, signal),
   });
 }

@@ -110,22 +110,24 @@ export function registerBrowserView(ctx: Context): void {
     const preceding = queues.get(sessionId) ?? Promise.resolve();
     const queued = preceding.catch(() => undefined).then(async () => {
       if (disposed || controller.signal.aborted || frames.get(sessionId) !== frame) return;
-      const screenshot = await ctx.tools.execute({
-        callId: ToolCallId(`workdsh-browser-view-${randomUUID()}`),
-        rootCallId: exec.rootCallId,
-        parent: exec.token,
-        name: screenshotName,
-        arguments: {},
+      const screenshotBatch = await ctx.tools.execute({
+        calls: [{
+          type: 'tool-call',
+          id: ToolCallId(`workdsh-browser-view-${randomUUID()}`),
+          name: screenshotName,
+          arguments: '{}',
+        }],
         agent: exec.agent,
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
       });
-      if (disposed || controller.signal.aborted) return;
+      const screenshot = screenshotBatch.results[0]?.result;
+      if (disposed || controller.signal.aborted || !screenshot) return;
       const current = frames.get(sessionId);
       if (current !== frame) return;
       // MCP keeps its canonical raw image even when the active model route is
       // text-only. The sidebar is a UI consumer, so it must not depend on the
       // model-facing image projection admitting an attachment.
-      const raw = screenshot.value && typeof screenshot.value === 'object' && 'content' in screenshot.value
+      const raw = !screenshot.isError && screenshot.value && typeof screenshot.value === 'object' && 'content' in screenshot.value
         ? (screenshot.value as { content?: unknown }).content : undefined;
       const rawImage = Array.isArray(raw) ? raw.find((block): block is { type: 'image'; mimeType: string; data: string } =>
         block !== null && typeof block === 'object' && block.type === 'image'
@@ -166,11 +168,18 @@ export function registerBrowserView(ctx: Context): void {
         const action = browserActionCall(body.action);
         const agent = agents.get(sessionId);
         if (!action || !agent || !frames.has(sessionId)) return Response.json({ error: 'Browser action unavailable' }, { status: 400 });
-        const result = await ctx.tools.execute({
-          callId: ToolCallId(`workdsh-browser-input-${randomUUID()}`), name: action.name,
-          arguments: action.arguments, agent, signal: AbortSignal.timeout(20_000),
+        const batch = await ctx.tools.execute({
+          calls: [{
+            type: 'tool-call',
+            id: ToolCallId(`workdsh-browser-input-${randomUUID()}`),
+            name: action.name,
+            arguments: JSON.stringify(action.arguments ?? {}),
+          }],
+          agent,
+          signal: AbortSignal.timeout(20_000),
         });
-        if (result.isError) return Response.json({ error: 'Browser action failed' }, { status: 502 });
+        const result = batch.results[0]?.result;
+        if (!result || result.isError) return Response.json({ error: 'Browser action failed' }, { status: 502 });
       }
       const frame = frames.get(sessionId) ?? null;
       const unchanged = frame !== null && body?.afterRevision === frame.revision;

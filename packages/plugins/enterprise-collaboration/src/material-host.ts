@@ -7,6 +7,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { createHash,randomUUID } from 'node:crypto';
 import { materialSnapshot } from './material-snapshot.js';
+import { inspectSession } from './session-inspect.js';
 import type { CollaborationClient } from './index.js';
 
 export function installMaterials(ctx:Context,client:CollaborationClient,conversations:Map<string,string>) {
@@ -20,7 +21,7 @@ export function installMaterials(ctx:Context,client:CollaborationClient,conversa
         let value:unknown;
         if(input.action==='prepare'&&input.sessionId) {
           await client.verify(ctx.workdshIdentity,input.sessionId,request.signal);
-          const inspected=await ready.sessionController.inspect(input.sessionId as SessionId,request.signal);
+          const inspected=await inspectSession(ready.sessionController,input.sessionId as SessionId,request.signal);
           const snapshot=materialSnapshot(inspected.events,{allowEmpty:true});
           const kinds=new Map(snapshot.files.map(file=>[String(file.attachmentId),'原始资料']));
           if(snapshot.generated.length){

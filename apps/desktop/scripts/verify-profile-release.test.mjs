@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
-import { requiredRuntimeDependencies, composeProfilePatches, verifyBuiltPackageExports, verifyDefaultComposition, verifyDefaultProfile, verifyInstalledDshVersions, verifyPackageDshReferences, verifyProfileRelease, verifyReleaseArchives } from './verify-profile-release.mjs'
+import { requiredRuntimeDependencies, composeProfilePatches, verifyBuiltPackageExports, verifyContextComposition, verifyDefaultComposition, verifyDefaultProfile, verifyInstalledDshVersions, verifyPackageDshReferences, verifyProfileRelease, verifyReleaseArchives } from './verify-profile-release.mjs'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -236,6 +236,15 @@ test('preserves official executable-expression tags without executing them while
   assert.match(result, /(?:!!js|!<tag:yaml.org,2002:js>)/)
   assert.match(result, /process\.env\.DSH_ELECTRON_EXECUTABLE/)
   assert.equal(composeProfilePatches([result]), result)
+})
+
+test('verifies the resolved Desktop context plugin settings and rejects duplicates or a changed value', () => {
+  const defaults = readFileSync(new URL('./praxis-default-context.patch.yml', import.meta.url), 'utf8')
+  const resolved = defaults.replace('  config:', '  name: dsh-context\n  config:')
+  const official = '- id: test\n  disabled: !!js "false"\n'
+  assert.doesNotThrow(() => verifyContextComposition(official + resolved, defaults))
+  assert.throws(() => verifyContextComposition(resolved + resolved, defaults), /exactly one/)
+  assert.throws(() => verifyContextComposition(resolved.replace("overviewAutoSteps: '100'", 'overviewAutoSteps: 100'), defaults), /overviewAutoSteps/)
 })
 
 test('includes packages loaded from owned patches even when declared as dependencies', () => {

@@ -57,7 +57,7 @@ async function archiveModule(name) {
   const manifest = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'));
   assert.equal(manifest.version, version);
   if (!resumeHome) for (const dependency of Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies })) {
-    if (dependency === '@deepseek-ai/dsh-experimental-agent-team') continue;
+    if (dependency === '@deepseek-ai/dsh-agent-team') continue;
     let dependencyRoot;
     for (const req of [requireDsh, requireRoot]) {
       try { dependencyRoot = dirname(req.resolve(`${dependency}/package.json`)); break; } catch { /* next public resolver */ }
@@ -153,8 +153,8 @@ async function createLead(id) {
 async function skillNames(agent) { return (await ctx.skills.list({ cwd: home, scope: agent })).map(skill => skill.name); }
 
 try {
-  const teamModule = await archiveModule('@deepseek-ai/dsh-experimental-agent-team');
-  const toolModule = await archiveModule('@deepseek-ai/dsh-experimental-tool-agent-team');
+  const teamModule = await archiveModule('@deepseek-ai/dsh-agent-team');
+  const toolModule = await archiveModule('@deepseek-ai/dsh-tool-agent-team');
   const Persona = await import(pathToFileURL(requireDsh.resolve('@deepseek-ai/dsh-persona')).href);
   const SkillFiles = await import(pathToFileURL(requireDsh.resolve('@deepseek-ai/dsh-skill-filesystem')).href);
   const { default: Loader } = await import(pathToFileURL(requireDsh.resolve('@deepseek-ai/cordis-plugin-loader')).href);
@@ -166,7 +166,7 @@ try {
   await load('@deepseek-ai/dsh-subagent-fork-in-process', { providerName: 'fork' });
   await load('@deepseek-ai/dsh-skill');
   ctx.llm.registerAdapter(['fixture'], new FixtureModel());
-  await load(teamModule, { maxMembers: 16, disposalTimeoutMs: 4000 });
+  await load(teamModule);
   await load(toolModule);
   const presetRoot = join(home, 'presets');
   if (!resumeHome) {

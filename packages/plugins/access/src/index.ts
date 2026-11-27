@@ -14,6 +14,7 @@ import {
   assertResourceOwner,
   GovernanceContractError,
 } from './governance.js';
+import { inspectSession, type SessionInspection } from './session-inspect.js';
 import type {
   AccessAction,
   AccessGrant,
@@ -31,6 +32,7 @@ import type {
   RuntimeBindingService,
   SessionOwnerBinding,
 } from 'workdsh-contracts';
+export { inspectSession, type SessionInspection } from './session-inspect.js';
 
 type SessionAgentResult = Awaited<ReturnType<Context['sessionController']['resolveAgent']>>;
 
@@ -413,7 +415,7 @@ export class SessionAccessBridge extends Service {
     if (request.sessionId !== undefined && !this.ctx.workdshAccess.sessionOwner(String(sessionId))) {
       let exists = false;
       try {
-        await this.ctx.sessionController.inspect(sessionId, signal);
+        await inspectSession(this.ctx.sessionController, sessionId, signal);
         exists = true;
       } catch (error) {
         if (!(error instanceof ApiSessionNotFound) && !hasErrorCode(error, 'session/not-found')) throw error;
@@ -445,7 +447,7 @@ export class SessionAccessBridge extends Service {
   }
 
   /** Private enterprise Session reads never inherit admin or material-sharing grants. */
-  async inspect(sessionId: SessionId, signal?: AbortSignal): Promise<Awaited<ReturnType<Context['sessionController']['inspect']>>> {
+  async inspect(sessionId: SessionId, signal?: AbortSignal): Promise<SessionInspection> {
     signal?.throwIfAborted();
     const actor = await this.ctx.workdshIdentity.resolve({ sessionId: String(sessionId) }, signal);
     const personal = this.ctx.workdshIdentity.profile().organization.kind === 'personal';
@@ -453,7 +455,7 @@ export class SessionAccessBridge extends Service {
     if (!personal && !(unbound && this.canBindFixedMemberSession(actor))) {
       this.assertPrivateSessionOwner(actor, String(sessionId));
     }
-    const result = await this.ctx.sessionController.inspect(sessionId, signal);
+    const result = await inspectSession(this.ctx.sessionController, sessionId, signal);
     signal?.throwIfAborted();
     if (!personal) {
       const current = await this.ctx.workdshIdentity.resolve({ sessionId: String(sessionId) }, signal);

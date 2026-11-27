@@ -1,17 +1,17 @@
 {
   "package": "@deepseek-ai/dsh-client-ui-conversation",
-  "version": "0.2.1-rc.2",
+  "version": "0.2.2-rc.5",
   "file": "lib/client.js",
-  "originalSha256": "8554738cbeeb5218ad1bfa4773ef094363b066d052a1893d7a96797c5bc33a63",
-  "patchedSha256": "aafebc0109b8d60eb1e1b5e1f3a686c72b86eaf7a3dae8fdd699e1756debc80f",
+  "originalSha256": "3d166eab312749bf8c528dd7d26d95340df75a27fec668b3510e4558fe9b343b",
+  "patchedSha256": "286305f34eefebd1cbf6c8f818aaf79a4e2f202e56d14d768ddcb44150741ed6",
   "replacements": [
     [
-      "return renderSlot(\"main.conversation\", {});",
-      "const conversation = renderSlot(\"main.conversation\", {});\n\t\t\treturn renderSlot(\"workdsh.workbench.frame\", { conversation }, { fallback: conversation });"
+      "return renderSlot(`main.conversation`,{})",
+      "const conversation = renderSlot(`main.conversation`,{});return renderSlot(`workdsh.workbench.frame`,{ conversation },{ fallback: conversation });"
     ],
     [
-      "children: { \"main.conversation\": {\n\t\t\t\t\t\tkind: \"single\",\n\t\t\t\t\t\tscope: \"session-maybe\"\n\t\t\t\t\t} }",
-      "children: { \"main.conversation\": { kind: \"single\", scope: \"session-maybe\" }, \"workdsh.workbench.frame\": { kind: \"single\", scope: \"root\" } }"
+      "children:{\"main.conversation\":{kind:`single`,scope:`session-maybe`}}",
+      "children:{\"main.conversation\":{kind:`single`,scope:`session-maybe`},\"workdsh.workbench.frame\":{kind:`single`,scope:`root`}}"
     ]
   ]
 }

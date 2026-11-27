@@ -1,0 +1,11 @@
+# Shared Desktop defaults; each workspace can override them in plugin settings.
+- id: dsh-context
+  config:
+    defaultPlacement: tab
+    insightsEntry: hide
+    fleetTab: show
+    defaultOverviewRange: '30d'
+    defaultGranularity: step
+    defaultTrendMode: total
+    defaultDurationCurve: show
+    overviewAutoSteps: '100'

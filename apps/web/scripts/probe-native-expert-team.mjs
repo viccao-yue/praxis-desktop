@@ -101,8 +101,8 @@ try {
   await load('@deepseek-ai/dsh-session-query-sqlite', { path: join(home, 'session-query.sqlite'), openAt: 'never' });
   await load('@deepseek-ai/dsh-subagent-spawn-in-process', { providerName: 'spawn' });
   await load('@deepseek-ai/dsh-subagent-fork-in-process', { providerName: 'fork' });
-  await load('@deepseek-ai/dsh-experimental-agent-team', { maxMembers: 16, disposalTimeoutMs: 4000 });
-  await load('@deepseek-ai/dsh-experimental-tool-agent-team');
+  await load('@deepseek-ai/dsh-agent-team');
+  await load('@deepseek-ai/dsh-tool-agent-team');
   ctx.llm.registerAdapter(['fixture'], new Model());
   const presetRoot = join(home, 'presets');
   if (!cold) {

@@ -8,13 +8,12 @@
 - id: tool-subagent-fork
   disabled: true
 - insert:
+    # DSH 0.2.2+: maxMembers/disposalTimeoutMs removed; teammates use subagent limits.
     - id: agent-team
-      name: '@deepseek-ai/dsh-experimental-agent-team'
-      config:
-        maxMembers: 16
+      name: '@deepseek-ai/dsh-agent-team'
     - id: tool-agent-team
-      name: '@deepseek-ai/dsh-experimental-tool-agent-team'
+      name: '@deepseek-ai/dsh-tool-agent-team'
     - id: client-ui-agent-team
-      name: '@deepseek-ai/dsh-experimental-client-ui-agent-team'
+      name: '@deepseek-ai/dsh-client-ui-agent-team'
     - id: workdsh-experts
       name: workdsh-plugin-experts

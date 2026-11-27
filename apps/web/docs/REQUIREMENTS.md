@@ -68,4 +68,4 @@ Puck、Craft.js等仅是可选界面编辑候选；目前Puck仅隔离验证组�
 
 ## kaiwu 3.0 候选版本边界
 
-Desktop 与 Web 产品版本统一为 `3.0.0-alpha.2`。这是开发候选版本号，不表示已发布或已通过全部验收。实际 DSH Host、Client 和 SDK npm 包统一为 `0.2.1-rc.2`，插件包和领域 schema 使用各自版本。工具二进制归档按各平台分别锁定真实来源：Intel 仍使用官方 `rc.1` 工具归档，保留原始元数据，不携带旧 DSH npm 包，也不自动回退。Desktop 安装制品仍须核对实际 Resources 与版本、架构，未通过门禁不得发布。
+Desktop 与 Web 产品版本统一为 `3.0.0-alpha.2`。这是开发候选版本号，不表示已发布或已通过全部验收。实际 DSH Host、Client 和 SDK npm 包统一为 `0.2.2-rc.5`，插件包和领域 schema 使用各自版本。工具二进制归档按各平台分别锁定真实来源：Intel 仍使用官方 `rc.1` 工具归档，保留原始元数据，不携带旧 DSH npm 包，也不自动回退。Desktop 安装制品仍须核对实际 Resources 与版本、架构，未通过门禁不得发布。
